@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use sdl2::event::Event;
 use sdl2::gfx::framerate::FPSManager;
 use sdl2::image::LoadTexture;
@@ -61,12 +63,12 @@ fn main() {
                 Piece::BlueSensei => &blue_sensei_tex,
             };
             let board_pos = Pos::from_index(i);
-            let mut new_piece = PieceGraphic::new(texture, board_pos.0, board_pos.1);
+            let mut new_piece = PieceGraphic::new(texture, board_pos);
             new_piece.x = corner.0;
             new_piece.y = corner.1;
             new_piece.width = board_graphic.tile_width as u32;
             new_piece.height = board_graphic.tile_width as u32;
-            piece_graphics.push(new_piece);
+            piece_graphics.push(RefCell::new(new_piece));
         }
     }
 
@@ -76,6 +78,8 @@ fn main() {
         mouse_just_released: false,
         mouse_pos: (0,0)
     };
+
+    let mut selected_piece: Option<&RefCell<PieceGraphic>> = None;
 
     // Start event loop
     let mut fps_manager = FPSManager::new();
@@ -119,15 +123,33 @@ fn main() {
             }
         }
 
-        if inputs.mouse_just_pressed {
+        if inputs.mouse_just_released && selected_piece.is_some() {
+            // For now, always reset position to original space
+            let mut piece = selected_piece.unwrap().borrow_mut();
+            let piece_idx = piece.board_pos.to_index();
+            let corner = board_graphic.tile_corners()[piece_idx];
+            piece.x = corner.0;
+            piece.y = corner.1;
+            selected_piece = None;
+        } else if inputs.mouse_just_pressed {
             if let Some(pos) = board_graphic.window_to_board_pos(inputs.mouse_pos) {
-                println!("{} {}", pos.0, pos.1)
+                for piece in &piece_graphics {
+                    if piece.borrow().board_pos == pos {
+                        selected_piece = Some(piece);
+                    }
+                }
             }
+        }
+
+        if let Some(piece) = selected_piece {
+            let mut piece = piece.borrow_mut();
+            piece.x = inputs.mouse_pos.0 - (piece.width/2) as i32;
+            piece.y = inputs.mouse_pos.1 - (piece.height/2) as i32;
         }
 
         board_graphic.draw_board(&mut canvas);
         for piece in &piece_graphics {
-            piece.draw(&mut canvas);
+            piece.borrow().draw(&mut canvas);
         }
 
         canvas.present();
@@ -149,6 +171,8 @@ struct BoardGraphic {
     y: i32,
     board_width: u32,
     tile_width: u32,
+    tiles: [Rect; 25],
+    tile_corners: [(i32,i32); 25],
 }
 impl BoardGraphic {
     pub fn new(canvas: &Canvas<Window>) -> Self {
@@ -157,11 +181,25 @@ impl BoardGraphic {
         let tile_width = (board_width - LINEWIDTH * 6) / 5;
         let x = ((screen_size.0 - board_width) / 2) as i32;
         let y = ((screen_size.1 - board_width) / 2) as i32;
+        let mut tiles = [Rect::new(0, 0, 0, 0); 25];
+        let mut tile_corners = [(0, 0); 25];
+        let mut i = 0;
+        for row in 0..5 {
+            for col in 0..5 {
+                let tile_x = (LINEWIDTH + x as u32 + col * (tile_width + LINEWIDTH)) as i32;
+                let tile_y = (LINEWIDTH + y as u32 + row * (tile_width + LINEWIDTH)) as i32;
+                tiles[i] = Rect::new(tile_x, tile_y, tile_width, tile_width);
+                tile_corners[i] = (tile_x, tile_y);
+                i += 1;
+            }
+        }
         Self {
             x,
             y,
             board_width,
             tile_width,
+            tiles,
+            tile_corners
         }
     }
     pub fn draw_board(&self, canvas: &mut Canvas<Window>) {
@@ -179,30 +217,22 @@ impl BoardGraphic {
         for (x, y) in self.tile_corners() {
             canvas
                 .fill_rect(Rect::new(
-                    x,
-                    y,
+                    *x,
+                    *y,
                     self.tile_width,
                     self.tile_width,
                 ))
                 .unwrap();
         }
     }
-    pub fn tile_corners(&self) -> [(i32, i32); 25] {
-        let mut corners = [(0, 0); 25];
-        let mut i = 0;
-        for row in 0..5 {
-            for col in 0..5 {
-                let x = LINEWIDTH + self.x as u32 + col * (self.tile_width + LINEWIDTH);
-                let y = LINEWIDTH + self.y as u32 + row * (self.tile_width + LINEWIDTH);
-                corners[i] = (x as i32, y as i32);
-                i += 1;
-            }
-        }
-        corners
+    pub fn tiles(&self) -> &[Rect; 25] {
+        &self.tiles
+    }
+    pub fn tile_corners(&self) -> &[(i32,i32); 25] {
+        &self.tile_corners
     }
     pub fn window_to_board_pos(&self, pos: (i32,i32)) -> Option<Pos> {
-        for (i, corner) in self.tile_corners().iter().enumerate() {
-            let tile = Rect::new(corner.0, corner.1, self.tile_width, self.tile_width);
+        for (i, tile) in self.tiles.iter().enumerate() {
             if tile.contains_point(pos) {
                 return Some(Pos::from_index(i))
             }
@@ -215,21 +245,19 @@ impl BoardGraphic {
 struct PieceGraphic<'tex> {
     pub x: i32,
     pub y: i32,
-    pub row: u8,
-    pub col: u8,
+    pub board_pos: Pos,
     pub width: u32,
     pub height: u32,
     texture: &'tex Texture<'tex>,
 }
 impl<'tex> PieceGraphic<'tex> {
-    pub fn new(texture: &'tex Texture, row: u8, col: u8) -> Self {
+    pub fn new(texture: &'tex Texture, board_pos: Pos) -> Self {
         let width = texture.query().width;
         let height = texture.query().height;
         PieceGraphic {
             x: 0,
             y: 0,
-            row,
-            col,
+            board_pos,
             width,
             height,
             texture,

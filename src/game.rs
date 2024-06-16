@@ -5,7 +5,7 @@ pub enum Piece {
     BlueDisciple = 0b10,
     BlueSensei = 0b11,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Pos(pub u8, pub u8);
 impl Pos {
     pub fn to_index(self) -> usize {
