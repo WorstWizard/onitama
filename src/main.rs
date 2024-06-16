@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use sdl2::event::Event;
 use sdl2::gfx::framerate::FPSManager;
 use sdl2::image::LoadTexture;
@@ -7,8 +5,8 @@ use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use sdl2::render::{Canvas, Texture};
-use sdl2::video::Window;
+use sdl2::render::{Canvas, Texture, TextureCreator};
+use sdl2::video::{Window, WindowContext};
 
 mod game;
 use game::*;
@@ -29,57 +27,24 @@ fn main() {
 
     let mut canvas = window.into_canvas().build().unwrap();
     let tex_creator = canvas.texture_creator();
+    let piece_textures = PieceTextures::init(&tex_creator);
 
     canvas.set_draw_color(Color::BLACK);
     canvas.clear();
     canvas.present();
 
-    let board = Board::new();
-    let board_graphic = BoardGraphic::new(&canvas);
-
-    // Load piece textures and tint them
-    let mut red_disciple_tex = tex_creator.load_texture("assets/disciple.png").unwrap();
-    let mut red_sensei_tex = tex_creator.load_texture("assets/sensei.png").unwrap();
-    let mut blue_disciple_tex = tex_creator.load_texture("assets/disciple.png").unwrap();
-    let mut blue_sensei_tex = tex_creator.load_texture("assets/sensei.png").unwrap();
-    red_disciple_tex.set_color_mod(255, 128, 128);
-    red_sensei_tex.set_color_mod(255, 128, 128);
-    blue_disciple_tex.set_color_mod(128, 128, 255);
-    blue_sensei_tex.set_color_mod(128, 128, 255);
-
-    // Create a separate graphics object for each piece
-    // Store a reference to each in the board graphic
-    let mut piece_graphics = Vec::with_capacity(10);
-    for (i, (corner, piece)) in board_graphic
-        .tile_corners()
-        .iter()
-        .zip(board.squares().iter()).enumerate()
-    {
-        if let Some(piece) = piece {
-            let texture = match *piece {
-                Piece::RedDisciple => &red_disciple_tex,
-                Piece::RedSensei => &red_sensei_tex,
-                Piece::BlueDisciple => &blue_disciple_tex,
-                Piece::BlueSensei => &blue_sensei_tex,
-            };
-            let board_pos = Pos::from_index(i);
-            let mut new_piece = PieceGraphic::new(texture, board_pos);
-            new_piece.x = corner.0;
-            new_piece.y = corner.1;
-            new_piece.width = board_graphic.tile_width as u32;
-            new_piece.height = board_graphic.tile_width as u32;
-            piece_graphics.push(RefCell::new(new_piece));
-        }
-    }
+    let mut game_board = Board::new();
+    let graphic_board = GraphicBoard::new(&canvas);
 
     let mut inputs = Inputs {
         mouse_pressed: false,
         mouse_just_pressed: false,
         mouse_just_released: false,
-        mouse_pos: (0,0)
+        mouse_pos: (0, 0),
     };
 
-    let mut selected_piece: Option<&RefCell<PieceGraphic>> = None;
+    let mut piece_graphics =
+        PieceGraphicsManager::new(&graphic_board, &game_board, &piece_textures);
 
     // Start event loop
     let mut fps_manager = FPSManager::new();
@@ -107,7 +72,7 @@ fn main() {
                 } => {
                     inputs.mouse_pressed = true;
                     inputs.mouse_just_pressed = true;
-                    inputs.mouse_pos = (x,y);
+                    inputs.mouse_pos = (x, y);
                 }
                 Event::MouseButtonUp {
                     mouse_btn: MouseButton::Left,
@@ -115,42 +80,57 @@ fn main() {
                 } => {
                     inputs.mouse_pressed = false;
                     inputs.mouse_just_released = true;
-                },
+                }
                 Event::MouseMotion { x, y, .. } => {
-                    inputs.mouse_pos = (x,y);
+                    inputs.mouse_pos = (x, y);
                 }
                 _ => (),
             }
         }
 
-        if inputs.mouse_just_released && selected_piece.is_some() {
-            // For now, always reset position to original space
-            let mut piece = selected_piece.unwrap().borrow_mut();
-            let piece_idx = piece.board_pos.to_index();
-            let corner = board_graphic.tile_corners()[piece_idx];
-            piece.x = corner.0;
-            piece.y = corner.1;
-            selected_piece = None;
-        } else if inputs.mouse_just_pressed {
-            if let Some(pos) = board_graphic.window_to_board_pos(inputs.mouse_pos) {
-                for piece in &piece_graphics {
-                    if piece.borrow().board_pos == pos {
-                        selected_piece = Some(piece);
+        if inputs.mouse_just_released && piece_graphics.selected_piece.is_some() {
+            let new_pos = graphic_board.window_to_board_pos(inputs.mouse_pos);
+            let old_pos = piece_graphics.selected_piece().unwrap().board_pos;
+            if new_pos.is_some() && old_pos != new_pos.unwrap() {
+                if let Some(pos) = new_pos {
+                    // If the move is legal, make the move
+                    let captured_piece = game_board.make_move(old_pos, pos);
+                    if let Some(piece) = captured_piece {
+                        println!("Captured a {:?}", piece);
+                        piece_graphics.remove_at_pos(pos);
                     }
+    
+                    // Place piece graphic at new location
+                    let new_index = pos.to_index();
+                    let corner = graphic_board.tile_corners()[new_index];
+    
+                    let piece_mut = piece_graphics.selected_piece_mut().unwrap();
+                    piece_mut.x = corner.0;
+                    piece_mut.y = corner.1;
+                    piece_mut.board_pos = pos;
                 }
+            } else {
+                // If the move is illegal, put the piece back
+                let prev_index = old_pos.to_index();
+                let corner = graphic_board.tile_corners()[prev_index];
+                let piece_mut = piece_graphics.selected_piece_mut().unwrap();
+                piece_mut.x = corner.0;
+                piece_mut.y = corner.1;
+            }
+            piece_graphics.selected_piece = None;
+        } else if inputs.mouse_just_pressed {
+            if let Some(pos) = graphic_board.window_to_board_pos(inputs.mouse_pos) {
+                piece_graphics.select_at_pos(pos);
             }
         }
 
-        if let Some(piece) = selected_piece {
-            let mut piece = piece.borrow_mut();
-            piece.x = inputs.mouse_pos.0 - (piece.width/2) as i32;
-            piece.y = inputs.mouse_pos.1 - (piece.height/2) as i32;
+        if let Some(piece) = piece_graphics.selected_piece_mut() {
+            piece.x = inputs.mouse_pos.0 - (piece.width / 2) as i32;
+            piece.y = inputs.mouse_pos.1 - (piece.height / 2) as i32;
         }
 
-        board_graphic.draw_board(&mut canvas);
-        for piece in &piece_graphics {
-            piece.borrow().draw(&mut canvas);
-        }
+        graphic_board.draw_board(&mut canvas);
+        piece_graphics.draw(&mut canvas);
 
         canvas.present();
         fps_manager.delay();
@@ -161,20 +141,126 @@ struct Inputs {
     pub mouse_pressed: bool,
     pub mouse_just_pressed: bool,
     pub mouse_just_released: bool,
-    pub mouse_pos: (i32, i32)
+    pub mouse_pos: (i32, i32),
+}
+
+struct PieceGraphicsManager<'tex> {
+    piece_graphics: Vec<GraphicPiece<'tex>>,
+    selected_piece: Option<usize>,
+}
+impl<'tex> PieceGraphicsManager<'tex> {
+    pub fn new(
+        graphic_board: &GraphicBoard,
+        game_board: &Board,
+        textures: &'tex PieceTextures<'tex>,
+    ) -> Self {
+        // Create a separate graphics object for each piece
+        let mut piece_graphics = Vec::with_capacity(10);
+        for (i, (corner, piece)) in graphic_board
+            .tile_corners()
+            .iter()
+            .zip(game_board.squares().iter())
+            .enumerate()
+        {
+            if let Some(piece) = piece {
+                let texture = match *piece {
+                    Piece::RedDisciple => &textures.red_disciple,
+                    Piece::RedSensei => &textures.red_sensei,
+                    Piece::BlueDisciple => &textures.blue_disciple,
+                    Piece::BlueSensei => &textures.blue_sensei,
+                };
+                let board_pos = Pos::from_index(i);
+                let mut new_piece = GraphicPiece::new(texture, board_pos);
+                new_piece.x = corner.0;
+                new_piece.y = corner.1;
+                new_piece.width = graphic_board.tile_width as u32;
+                new_piece.height = graphic_board.tile_width as u32;
+                piece_graphics.push(new_piece);
+            }
+        }
+        PieceGraphicsManager {
+            piece_graphics,
+            selected_piece: None,
+        }
+    }
+    pub fn remove_at_pos(&mut self, pos: Pos) {
+        match self
+            .piece_graphics
+            .iter()
+            .enumerate()
+            .find(|(_, piece)| piece.board_pos == pos)
+        {
+            Some((i, _)) => {
+                self.piece_graphics.swap_remove(i);
+            }
+            None => (),
+        }
+    }
+    pub fn select_at_pos(&mut self, pos: Pos) {
+        for (i, piece) in self.piece_graphics.iter().enumerate() {
+            if piece.board_pos == pos {
+                self.selected_piece = Some(i);
+                return;
+            }
+        }
+        self.selected_piece = None;
+    }
+    pub fn selected_piece(&mut self) -> Option<&GraphicPiece<'tex>> {
+        if let Some(i) = self.selected_piece {
+            return self.piece_graphics.get(i);
+        }
+        None
+    }
+    pub fn selected_piece_mut(&mut self) -> Option<&mut GraphicPiece<'tex>> {
+        if let Some(i) = self.selected_piece {
+            return self.piece_graphics.get_mut(i);
+        }
+        None
+    }
+    pub fn draw(&self, canvas: &mut Canvas<Window>) {
+        for piece in &self.piece_graphics {
+            piece.draw(canvas)
+        }
+    }
+}
+
+struct PieceTextures<'a> {
+    red_disciple: Texture<'a>,
+    red_sensei: Texture<'a>,
+    blue_disciple: Texture<'a>,
+    blue_sensei: Texture<'a>,
+}
+impl<'a> PieceTextures<'a> {
+    pub fn init(tex_creator: &'a TextureCreator<WindowContext>) -> Self {
+        // Load piece textures and tint them
+        let mut red_disciple = tex_creator.load_texture("assets/disciple.png").unwrap();
+        let mut red_sensei = tex_creator.load_texture("assets/sensei.png").unwrap();
+        let mut blue_disciple = tex_creator.load_texture("assets/disciple.png").unwrap();
+        let mut blue_sensei = tex_creator.load_texture("assets/sensei.png").unwrap();
+        red_disciple.set_color_mod(255, 128, 128);
+        red_sensei.set_color_mod(255, 128, 128);
+        blue_disciple.set_color_mod(128, 128, 255);
+        blue_sensei.set_color_mod(128, 128, 255);
+        PieceTextures {
+            red_disciple,
+            red_sensei,
+            blue_disciple,
+            blue_sensei,
+        }
+    }
 }
 
 const LINEWIDTH: u32 = 10; //px
 /// Draws board and provides offsets for individual tiles
-struct BoardGraphic {
+struct GraphicBoard {
     x: i32,
     y: i32,
     board_width: u32,
     tile_width: u32,
     tiles: [Rect; 25],
-    tile_corners: [(i32,i32); 25],
+    tile_corners: [(i32, i32); 25],
 }
-impl BoardGraphic {
+impl GraphicBoard {
     pub fn new(canvas: &Canvas<Window>) -> Self {
         let screen_size = canvas.output_size().unwrap();
         let board_width = u32::min(screen_size.0, screen_size.1);
@@ -199,7 +285,7 @@ impl BoardGraphic {
             board_width,
             tile_width,
             tiles,
-            tile_corners
+            tile_corners,
         }
     }
     pub fn draw_board(&self, canvas: &mut Canvas<Window>) {
@@ -216,25 +302,21 @@ impl BoardGraphic {
         canvas.set_draw_color(Color::WHITE);
         for (x, y) in self.tile_corners() {
             canvas
-                .fill_rect(Rect::new(
-                    *x,
-                    *y,
-                    self.tile_width,
-                    self.tile_width,
-                ))
+                .fill_rect(Rect::new(*x, *y, self.tile_width, self.tile_width))
                 .unwrap();
         }
     }
     pub fn tiles(&self) -> &[Rect; 25] {
         &self.tiles
     }
-    pub fn tile_corners(&self) -> &[(i32,i32); 25] {
+    pub fn tile_corners(&self) -> &[(i32, i32); 25] {
         &self.tile_corners
     }
-    pub fn window_to_board_pos(&self, pos: (i32,i32)) -> Option<Pos> {
+    /// If the given position in window coords is on a tile on the board, returns that position.
+    pub fn window_to_board_pos(&self, pos: (i32, i32)) -> Option<Pos> {
         for (i, tile) in self.tiles.iter().enumerate() {
             if tile.contains_point(pos) {
-                return Some(Pos::from_index(i))
+                return Some(Pos::from_index(i));
             }
         }
         None
@@ -242,7 +324,7 @@ impl BoardGraphic {
 }
 
 /// Tracks and draws an individual piece
-struct PieceGraphic<'tex> {
+struct GraphicPiece<'tex> {
     pub x: i32,
     pub y: i32,
     pub board_pos: Pos,
@@ -250,11 +332,11 @@ struct PieceGraphic<'tex> {
     pub height: u32,
     texture: &'tex Texture<'tex>,
 }
-impl<'tex> PieceGraphic<'tex> {
+impl<'tex> GraphicPiece<'tex> {
     pub fn new(texture: &'tex Texture, board_pos: Pos) -> Self {
         let width = texture.query().width;
         let height = texture.query().height;
-        PieceGraphic {
+        GraphicPiece {
             x: 0,
             y: 0,
             board_pos,

@@ -1,4 +1,4 @@
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Piece {
     RedDisciple = 0b00,
     RedSensei = 0b01,
