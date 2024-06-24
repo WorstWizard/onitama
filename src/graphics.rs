@@ -90,6 +90,9 @@ impl<'tex> PieceGraphicsManager<'tex> {
         for piece in &self.piece_graphics {
             piece.draw(canvas)
         }
+        if let Some(idx) = self.selected_piece {
+            self.piece_graphics[idx].draw(canvas)
+        }
     }
     /// Moves currently selected piece from one board position to another, deleting a piece if one is already present
     /// Does not check whether the move is legal, or the move is on top of itself
