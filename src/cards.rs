@@ -1,18 +1,22 @@
 use crate::game::Pos;
 
 pub struct Card {
-    pub offsets: Vec<Pos>,
+    pub offsets: &'static [Pos]
 }
-
-impl<const N: usize> From<[Pos; N]> for Card {
-    fn from(value: [Pos; N]) -> Self {
-        Card { offsets: value.to_vec() }
+impl Card {
+    pub const fn new(offsets: &'static [Pos]) -> Self {
+        Card { offsets }
     }
 }
 
-pub const BOAR: [Pos; 3] = [
+
+pub const BOAR: Card = Card::new(&[
     Pos(-1,0),
     Pos(0,-1),
     Pos(0,1)
-];
-
+]);
+pub const RABBIT: Card = Card::new(&[
+    Pos(1,-1),
+    Pos(-1,1),
+    Pos(0,2)
+]);

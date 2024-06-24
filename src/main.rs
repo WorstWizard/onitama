@@ -1,5 +1,4 @@
 use sdl2::event::Event;
-use sdl2::gfx::framerate::FPSManager;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
@@ -46,8 +45,8 @@ fn main() {
         PieceGraphicsManager::new(&graphic_board, &game_board, &piece_textures);
 
     // Start event loop
-    let mut fps_manager = FPSManager::new();
-    fps_manager.set_framerate(FRAMERATE).unwrap();
+    // let mut fps_manager = FPSManager::new();
+    // fps_manager.set_framerate(FRAMERATE).unwrap();
     let mut event_pump = sdl_ctx.event_pump().unwrap();
     'main: loop {
         canvas.set_draw_color(Color::BLACK);
@@ -123,7 +122,7 @@ fn main() {
         piece_graphics.draw(&mut canvas);
 
         canvas.present();
-        fps_manager.delay();
+        // fps_manager.delay();
     }
 }
 
