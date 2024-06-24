@@ -44,9 +44,8 @@ fn main() {
     let mut piece_graphics =
         PieceGraphicsManager::new(&graphic_board, &game_board, &piece_textures);
 
+    let mut fps_manager = FPSManager::new(60);
     // Start event loop
-    // let mut fps_manager = FPSManager::new();
-    // fps_manager.set_framerate(FRAMERATE).unwrap();
     let mut event_pump = sdl_ctx.event_pump().unwrap();
     'main: loop {
         canvas.set_draw_color(Color::BLACK);
@@ -122,7 +121,7 @@ fn main() {
         piece_graphics.draw(&mut canvas);
 
         canvas.present();
-        // fps_manager.delay();
+        fps_manager.delay_frame();
     }
 }
 
@@ -131,4 +130,23 @@ struct Inputs {
     pub mouse_just_pressed: bool,
     pub mouse_just_released: bool,
     pub mouse_pos: (i32, i32),
+}
+
+struct FPSManager {
+    timer: std::time::Instant,
+    target_duration_per_frame: std::time::Duration,
+}
+impl FPSManager {
+    pub fn new(target_framerate: u64) -> Self {
+        FPSManager {
+            timer: std::time::Instant::now(),
+            target_duration_per_frame: std::time::Duration::from_millis(1000/target_framerate)
+        }
+    }
+    pub fn delay_frame(&mut self) {
+        let since_last_frame = self.timer.elapsed();
+        self.timer = std::time::Instant::now();
+        let sleep_time = self.target_duration_per_frame.saturating_sub(since_last_frame);
+        std::thread::sleep(sleep_time)
+    }
 }
