@@ -8,6 +8,7 @@ mod game;
 use game::*;
 mod graphics;
 use graphics::*;
+mod cards;
 
 const WIDTH: u32 = 1024;
 const HEIGHT: u32 = 768;
