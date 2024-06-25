@@ -108,10 +108,13 @@ fn main() {
             piece_graphics.unselect();
         } else if inputs.mouse_just_pressed {
             if let Some(pos) = graphic_board.window_to_board_pos(inputs.mouse_pos) {
-                piece_graphics.select_at_pos(pos);
-                let legal_moves = game_board.legal_moves_from_pos(pos);
-                let end_positions = legal_moves.iter().map(|mov| mov.end_pos);
-                position_highlights.extend(end_positions);
+                let piece = game_board.squares()[pos.to_index()];
+                if piece.is_some_and(|piece| piece.is_red() == game_board.red_to_move()) {
+                    piece_graphics.select_at_pos(pos);
+                    let legal_moves = game_board.legal_moves_from_pos(pos);
+                    let end_positions = legal_moves.iter().map(|mov| mov.end_pos);
+                    position_highlights.extend(end_positions);
+                }
             }
         }
 
