@@ -91,14 +91,12 @@ fn main() {
             let new_pos = graphic_board.window_to_board_pos(inputs.mouse_pos);
             let old_pos = piece_graphics.selected_piece().unwrap().board_pos;
             if new_pos.is_some() && old_pos != new_pos.unwrap() {
-                if let Some(pos) = new_pos {
-                    // If the move is legal, make the move
-                    let captured_piece = game_board.make_move(old_pos, pos);
-                    if let Some(piece) = captured_piece {
-                        println!("Captured a {:?}", piece);
-                    }
-                    piece_graphics.make_move(&graphic_board, new_pos.unwrap());
+                // If the move is legal, make the move
+                let captured_piece = game_board.make_move(old_pos, new_pos.unwrap());
+                if let Some(piece) = captured_piece {
+                    println!("Captured a {:?}", piece);
                 }
+                piece_graphics.make_move(&graphic_board, new_pos.unwrap());
             } else {
                 // If the move is illegal, put the piece back
                 let prev_index = old_pos.to_index();
