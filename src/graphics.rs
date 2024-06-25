@@ -6,6 +6,10 @@ use sdl2::video::{Window, WindowContext};
 
 use crate::game::*;
 
+const COL_TILE: Color = Color::WHITE;
+const COL_LINES: Color = Color::GRAY;
+const COL_HIGHLIGHT: Color = Color::YELLOW;
+
 pub struct PieceGraphicsManager<'tex> {
     piece_graphics: Vec<GraphicPiece<'tex>>,
     selected_piece: Option<usize>,
@@ -175,7 +179,7 @@ impl GraphicBoard {
         }
     }
     pub fn draw_board(&self, canvas: &mut Canvas<Window>) {
-        canvas.set_draw_color(Color::GRAY);
+        canvas.set_draw_color(COL_LINES);
         canvas
             .fill_rect(Rect::new(
                 self.x,
@@ -185,16 +189,20 @@ impl GraphicBoard {
             ))
             .unwrap();
 
-        canvas.set_draw_color(Color::WHITE);
+        canvas.set_draw_color(COL_TILE);
         for (x, y) in self.tile_corners() {
             canvas
                 .fill_rect(Rect::new(*x, *y, self.tile_width, self.tile_width))
                 .unwrap();
         }
     }
-    // pub fn tiles(&self) -> &[Rect; 25] {
-    //     &self.tiles
-    // }
+    pub fn highlight_tiles(&self, canvas: &mut Canvas<Window>, positions: &[Pos]) {
+        for pos in positions {
+            let (x, y) = self.tile_corners[pos.to_index()];
+            canvas.set_draw_color(COL_HIGHLIGHT);
+            canvas.fill_rect(Rect::new(x, y, self.tile_width, self.tile_width));
+        }
+    }
     pub fn tile_corners(&self) -> &[(i32, i32); 25] {
         &self.tile_corners
     }

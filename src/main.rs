@@ -11,19 +11,11 @@ mod cards;
 
 const WIDTH: u32 = 1024;
 const HEIGHT: u32 = 768;
-const FRAMERATE: u32 = 60;
+const FRAMERATE: u64 = 60;
 
 fn main() {
     let sdl_ctx = sdl2::init().unwrap();
     let video_subsystem = sdl_ctx.video().unwrap();
-
-    let test_card = cards::RABBIT;
-    for pos in test_card.offsets() {
-        println!("{},{}", pos.0,pos.1)
-    }
-    for pos in test_card.rev_offsets() {
-        println!("{},{}", pos.0,pos.1)
-    }
 
     let window = video_subsystem
         .window("Onitama", WIDTH, HEIGHT)
@@ -51,8 +43,9 @@ fn main() {
 
     let mut piece_graphics =
         PieceGraphicsManager::new(&graphic_board, &game_board, &piece_textures);
+    let mut position_highlights = Vec::new();
 
-    let mut fps_manager = FPSManager::new(60);
+    let mut fps_manager = FPSManager::new(FRAMERATE);
     // Start event loop
     let mut event_pump = sdl_ctx.event_pump().unwrap();
     'main: loop {
@@ -94,6 +87,7 @@ fn main() {
         }
 
         if inputs.mouse_just_released && piece_graphics.selected_piece().is_some() {
+            position_highlights.clear();
             let new_pos = graphic_board.window_to_board_pos(inputs.mouse_pos);
             let old_pos = piece_graphics.selected_piece().unwrap().board_pos;
             if new_pos.is_some() && old_pos != new_pos.unwrap() {
@@ -117,6 +111,9 @@ fn main() {
         } else if inputs.mouse_just_pressed {
             if let Some(pos) = graphic_board.window_to_board_pos(inputs.mouse_pos) {
                 piece_graphics.select_at_pos(pos);
+                let legal_moves = game_board.legal_moves_from_pos(pos);
+                let end_positions = legal_moves.iter().map(|mov| mov.end_pos);
+                position_highlights.extend(end_positions);
             }
         }
 
@@ -126,6 +123,7 @@ fn main() {
         }
 
         graphic_board.draw_board(&mut canvas);
+        graphic_board.highlight_tiles(&mut canvas, &position_highlights);
         piece_graphics.draw(&mut canvas);
 
         canvas.present();

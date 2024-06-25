@@ -1,5 +1,8 @@
 use crate::game::Pos;
 
+pub const LARGEST_CARD: usize = 4;
+
+#[derive(Clone, Copy)]
 pub struct Card {
     offsets: &'static [Pos],
     rev_offsets: &'static [Pos],
@@ -21,6 +24,8 @@ macro_rules! new_card {
     };
 }
 
+/// Should only be used for testing/debugging/initialization
+pub const NULL: Card = Card { offsets: &[], rev_offsets: &[] };
 pub const BOAR: Card = new_card![
     Pos(-1,0),
     Pos(0,-1),
