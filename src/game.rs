@@ -40,9 +40,9 @@ impl Board {
         Board {
             red_to_move: true,
             squares,
-            red_cards: (cards::BOAR.into(), cards::BOAR.into()),
-            blue_cards: (cards::BOAR.into(), cards::BOAR.into()),
-            transfer_card: cards::BOAR.into()
+            red_cards: (cards::BOAR, cards::BOAR),
+            blue_cards: (cards::BOAR, cards::BOAR),
+            transfer_card: cards::BOAR
         }
     }
     // Does not check legality of move, just makes it

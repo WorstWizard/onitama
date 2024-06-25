@@ -17,6 +17,14 @@ fn main() {
     let sdl_ctx = sdl2::init().unwrap();
     let video_subsystem = sdl_ctx.video().unwrap();
 
+    let test_card = cards::RABBIT;
+    for pos in test_card.offsets() {
+        println!("{},{}", pos.0,pos.1)
+    }
+    for pos in test_card.rev_offsets() {
+        println!("{},{}", pos.0,pos.1)
+    }
+
     let window = video_subsystem
         .window("Onitama", WIDTH, HEIGHT)
         .position_centered()
