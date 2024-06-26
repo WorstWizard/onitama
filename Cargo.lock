@@ -31,6 +31,8 @@ name = "onitama"
 version = "0.1.0"
 dependencies = [
  "sdl2",
+ "tinyrand",
+ "tinyrand-std",
 ]
 
 [[package]]
@@ -54,6 +56,21 @@ dependencies = [
  "cfg-if",
  "libc",
  "version-compare",
+]
+
+[[package]]
+name = "tinyrand"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87ffaad2263779579369d45f65cad0647c860893d27e4543cdcc1e428d07da2c"
+
+[[package]]
+name = "tinyrand-std"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4328fbf2b798a35faaa4f1139fa7efe6ab0449efc31cac5d107d69844a5acd30"
+dependencies = [
+ "tinyrand",
 ]
 
 [[package]]
