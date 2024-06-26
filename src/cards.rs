@@ -24,23 +24,23 @@ macro_rules! new_card {
     };
 }
 
-pub const ALL_CARDS: [&'static Card; 16] = [
-    &BOAR,
-    &COBRA,
-    &CRAB,
-    &CRANE,
-    &DRAGON,
-    &EEL,
-    &ELEPHANT,
-    &FROG,
-    &GOOSE,
-    &HORSE,
-    &MANTIS,
-    &MONKEY,
-    &OX,
-    &RABBIT,
-    &ROOSTER,
-    &TIGER
+pub const ALL_CARDS: [Card; 16] = [
+    BOAR,
+    COBRA,
+    CRAB,
+    CRANE,
+    DRAGON,
+    EEL,
+    ELEPHANT,
+    FROG,
+    GOOSE,
+    HORSE,
+    MANTIS,
+    MONKEY,
+    OX,
+    RABBIT,
+    ROOSTER,
+    TIGER
 ];
 
 /// Should only be used for testing/debugging/initialization
