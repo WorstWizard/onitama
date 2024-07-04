@@ -4,8 +4,8 @@ use sdl2::rect::Rect;
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 
-use crate::cards::{self, Card};
-use crate::{game::*, WIDTH};
+use crate::cards::Card;
+use crate::game::*;
 
 const COL_TILE: Color = Color::WHITE;
 const COL_LINES: Color = Color::GRAY;
@@ -262,13 +262,34 @@ pub struct GraphicCard {
 }
 impl GraphicCard {
     pub const WIDTH: u32 = 200;
-    pub const HEIGHT: u32 = 100;
+    pub const HEIGHT: u32 = 200;
     pub fn new(game_card: Card, rect: Rect) -> Self{
         Self { game_card, rect }
     }
-    pub fn draw(&self, canvas: &mut Canvas<Window>) {
+    pub fn draw(&self, canvas: &mut Canvas<Window>, upwards: bool) {
         canvas.set_draw_color(Color::GREEN);
         canvas.fill_rect(self.rect).unwrap();
+
+        let (x,y) = (self.rect.x(), self.rect.y());
+        let sub_rect_w = self.rect.width()/5;
+        let sub_rect_h = self.rect.height()/5;
+        let offsets = if upwards { self.game_card.offsets() } else { self.game_card.rev_offsets() };
+        canvas.set_draw_color(Color::WHITE);
+        canvas.fill_rect(Rect::new(
+            x + 2*sub_rect_w as i32,
+            y + 2*sub_rect_h as i32,
+            sub_rect_w,
+            sub_rect_h
+        )).unwrap();
+        for pos in offsets {
+            canvas.fill_rect(
+                Rect::new(
+                    x + (pos.1 as i32+2)*sub_rect_w as i32,
+                    y + (pos.0 as i32+2)*sub_rect_h as i32,
+                    sub_rect_w, sub_rect_h
+                )
+            ).unwrap();
+        }
     }
     pub fn set_pos(&mut self, x: i32, y: i32) {
         self.rect.x = x;
@@ -306,11 +327,11 @@ impl CardGraphicManager {
             transfer_card
         }
     }
-    pub fn draw(&self, canvas: &mut Canvas<Window>) {
-        self.red_cards.0.draw(canvas);
-        self.red_cards.1.draw(canvas);
-        self.blue_cards.0.draw(canvas);
-        self.blue_cards.1.draw(canvas);
-        self.transfer_card.draw(canvas);
+    pub fn draw(&self, canvas: &mut Canvas<Window>, red_to_move: bool) {
+        self.red_cards.0.draw(canvas, true);
+        self.red_cards.1.draw(canvas, true);
+        self.blue_cards.0.draw(canvas, false);
+        self.blue_cards.1.draw(canvas, false);
+        self.transfer_card.draw(canvas, red_to_move);
     }
 }

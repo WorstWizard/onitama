@@ -131,7 +131,7 @@ fn main() {
         graphic_board.draw_board(&mut canvas);
         graphic_board.highlight_tiles(&mut canvas, &position_highlights);
         piece_graphics.draw(&mut canvas);
-        card_graphics.draw(&mut canvas);
+        card_graphics.draw(&mut canvas, game_board.red_to_move());
 
         canvas.present();
         fps_manager.delay_frame();
