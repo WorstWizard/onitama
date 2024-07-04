@@ -4,7 +4,8 @@ use sdl2::rect::Rect;
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 
-use crate::game::*;
+use crate::cards::{self, Card};
+use crate::{game::*, WIDTH};
 
 const COL_TILE: Color = Color::WHITE;
 const COL_LINES: Color = Color::GRAY;
@@ -155,8 +156,10 @@ impl GraphicBoard {
         let screen_size = canvas.output_size().unwrap();
         let board_width = u32::min(screen_size.0, screen_size.1);
         let tile_width = (board_width - LINEWIDTH * 6) / 5;
-        let x = ((screen_size.0 - board_width) / 2) as i32;
-        let y = ((screen_size.1 - board_width) / 2) as i32;
+        // let x = ((screen_size.0 - board_width) / 2) as i32;
+        // let y = ((screen_size.1 - board_width) / 2) as i32;
+        let x = 0;
+        let y = 0;
         let mut tiles = [Rect::new(0, 0, 0, 0); 25];
         let mut tile_corners = [(0, 0); 25];
         let mut i = 0;
@@ -200,11 +203,14 @@ impl GraphicBoard {
         for pos in positions {
             let (x, y) = self.tile_corners[pos.to_index()];
             canvas.set_draw_color(COL_HIGHLIGHT);
-            canvas.fill_rect(Rect::new(x, y, self.tile_width, self.tile_width));
+            canvas.fill_rect(Rect::new(x, y, self.tile_width, self.tile_width)).unwrap();
         }
     }
     pub fn tile_corners(&self) -> &[(i32, i32); 25] {
         &self.tile_corners
+    }
+    pub fn board_width(&self) -> u32 {
+        self.board_width
     }
     /// If the given position in window coords is on a tile on the board, returns that position.
     pub fn window_to_board_pos(&self, pos: (i32, i32)) -> Option<Pos> {
@@ -247,5 +253,64 @@ impl<'tex> GraphicPiece<'tex> {
                 Rect::new(self.x, self.y, self.width, self.height),
             )
             .unwrap();
+    }
+}
+
+pub struct GraphicCard {
+    game_card: Card,
+    pub rect: Rect
+}
+impl GraphicCard {
+    pub const WIDTH: u32 = 200;
+    pub const HEIGHT: u32 = 100;
+    pub fn new(game_card: Card, rect: Rect) -> Self{
+        Self { game_card, rect }
+    }
+    pub fn draw(&self, canvas: &mut Canvas<Window>) {
+        canvas.set_draw_color(Color::GREEN);
+        canvas.fill_rect(self.rect).unwrap();
+    }
+    pub fn set_pos(&mut self, x: i32, y: i32) {
+        self.rect.x = x;
+        self.rect.y = y;
+    }
+}
+pub struct CardGraphicManager {
+    pub red_cards: (GraphicCard, GraphicCard),
+    pub blue_cards: (GraphicCard, GraphicCard),
+    pub transfer_card: GraphicCard
+}
+impl CardGraphicManager {
+    pub fn new(game_board: &Board, container_rect: Rect) -> Self {
+        let cards = game_board.cards();
+        let card_w = (container_rect.width()/2).min(GraphicCard::WIDTH) as i32;
+        let card_h = (container_rect.height()/3).min(GraphicCard::HEIGHT) as i32;
+        let x = container_rect.x();
+        let y = container_rect.y();
+        let w = container_rect.width() as i32;
+        let h = container_rect.height() as i32;
+        let red_card_0 = GraphicCard::new(cards[0], Rect::new(x, y+h-card_h, card_w as u32, card_h as u32));
+        let red_card_1 = GraphicCard::new(cards[1], Rect::new(x+w-card_w, y+h-card_h, card_w as u32, card_h as u32));
+        let blue_card_0 = GraphicCard::new(cards[2], Rect::new(x, y, card_w as u32, card_h as u32));
+        let blue_card_1 = GraphicCard::new(cards[3], Rect::new(x+w-card_w, y, card_w as u32, card_h as u32));
+        let transfer_card = GraphicCard::new(cards[4], Rect::new(x+(w-card_w)/2, y+(h-card_h)/2, card_w as u32, card_h as u32));
+        Self {
+            red_cards: (
+                red_card_0,
+                red_card_1
+            ),
+            blue_cards: (
+                blue_card_0,
+                blue_card_1
+            ),
+            transfer_card
+        }
+    }
+    pub fn draw(&self, canvas: &mut Canvas<Window>) {
+        self.red_cards.0.draw(canvas);
+        self.red_cards.1.draw(canvas);
+        self.blue_cards.0.draw(canvas);
+        self.blue_cards.1.draw(canvas);
+        self.transfer_card.draw(canvas);
     }
 }

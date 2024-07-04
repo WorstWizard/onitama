@@ -67,12 +67,13 @@ impl Board {
             None,               None,               None,             None,               None,
             Some(RedDisciple),  Some(RedDisciple),  Some(RedSensei),  Some(RedDisciple),  Some(RedDisciple),
         ];
+        let rand_cards = cards::random_cards();
         Board {
             red_to_move: true,
             squares,
-            red_cards: (cards::RABBIT, cards::NULL),
-            blue_cards: (cards::BOAR, cards::NULL),
-            transfer_card: cards::NULL
+            red_cards: (rand_cards[0], rand_cards[1]),
+            blue_cards: (rand_cards[2], rand_cards[3]),
+            transfer_card: rand_cards[4]
         }
     }
     // Does not check legality of move, just makes it
@@ -135,6 +136,10 @@ impl Board {
 
     pub fn squares(&self) -> &[Option<Piece>; 25] {
         &self.squares
+    }
+
+    pub fn cards(&self) -> [Card; 5] {
+        [self.red_cards.0, self.red_cards.1, self.blue_cards.0, self.blue_cards.1, self.transfer_card]
     }
 
     pub fn red_to_move(&self) -> bool {

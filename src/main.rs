@@ -7,13 +7,15 @@ mod game;
 use game::*;
 mod graphics;
 use graphics::*;
+use sdl2::rect::Rect;
 mod cards;
 
-const WIDTH: u32 = 1024;
-const HEIGHT: u32 = 768;
+const WIDTH: u32 = 1200;
+const HEIGHT: u32 = 800;
 const FRAMERATE: u64 = 60;
 
 fn main() {
+    // Set up SDL, window, most graphics
     let sdl_ctx = sdl2::init().unwrap();
     let video_subsystem = sdl_ctx.video().unwrap();
 
@@ -24,16 +26,23 @@ fn main() {
         .unwrap();
 
     let mut canvas = window.into_canvas().build().unwrap();
-    let tex_creator = canvas.texture_creator();
-    let piece_textures = PieceTextures::init(&tex_creator);
-
     canvas.set_draw_color(Color::BLACK);
     canvas.clear();
     canvas.present();
+    
+    // Load textures for the pieces
+    let tex_creator = canvas.texture_creator();
+    let piece_textures = PieceTextures::init(&tex_creator);
 
+    // Make game board, set up graphics
     let mut game_board = Board::new();
-    let graphic_board = GraphicBoard::new(&canvas);
-
+    let graphic_board = GraphicBoard::new(&canvas);    
+    let mut piece_graphics =
+    PieceGraphicsManager::new(&graphic_board, &game_board, &piece_textures);
+    let mut position_highlights = Vec::new();
+    let card_graphics = CardGraphicManager::new(&game_board, Rect::new(graphic_board.board_width() as i32, 0, WIDTH-graphic_board.board_width(), HEIGHT));
+    
+    // Inputs
     let mut inputs = Inputs {
         mouse_pressed: false,
         mouse_just_pressed: false,
@@ -41,12 +50,8 @@ fn main() {
         mouse_pos: (0, 0),
     };
 
-    let mut piece_graphics =
-        PieceGraphicsManager::new(&graphic_board, &game_board, &piece_textures);
-    let mut position_highlights = Vec::new();
-
-    let mut fps_manager = FPSManager::new(FRAMERATE);
     // Start event loop
+    let mut fps_manager = FPSManager::new(FRAMERATE);
     let mut event_pump = sdl_ctx.event_pump().unwrap();
     'main: loop {
         canvas.set_draw_color(Color::BLACK);
@@ -126,6 +131,7 @@ fn main() {
         graphic_board.draw_board(&mut canvas);
         graphic_board.highlight_tiles(&mut canvas, &position_highlights);
         piece_graphics.draw(&mut canvas);
+        card_graphics.draw(&mut canvas);
 
         canvas.present();
         fps_manager.delay_frame();
