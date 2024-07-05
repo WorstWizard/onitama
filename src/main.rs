@@ -59,6 +59,7 @@ fn main() {
     };
 
     // Start event loop
+    let mut game_won = false;
     let mut fps_manager = FPSManager::new(FRAMERATE);
     let mut event_pump = sdl_ctx.event_pump().unwrap();
     'main: loop {
@@ -122,29 +123,25 @@ fn main() {
                 );
                 if let Some(game_move) = move_result {
                     // If the move was legal, the move was made, update graphics
-                    
+                    piece_graphics.make_move(&graphic_board, new_pos);
+                    piece_graphics.unselect();
+                    card_graphics.swap_cards();
+                    card_graphics.unselect();
+
                     if let Some(capture) = game_move.captured_piece {
                         match capture {
                             Piece::RedSensei => {
                                 println!("Blue wins!");
-                                // Rest on the laurels a moment
-                                std::thread::sleep(std::time::Duration::from_secs(1));
-                                break 'main
+                                game_won = true;
                             },
                             Piece::BlueSensei => {
-                                // Rest on the laurels a moment
-                                std::thread::sleep(std::time::Duration::from_secs(1));
                                 println!("Red wins!");
-                                break 'main
+                                game_won = true;
                             },
                             _ => ()
                         }
                         println!("Captured a {:?}", capture);
                     }
-                    piece_graphics.make_move(&graphic_board, new_pos);
-                    piece_graphics.unselect();
-                    card_graphics.swap_cards();
-                    card_graphics.unselect();
                 } else {
                     // If the move is illegal, put the piece back
                     return_piece(&graphic_board, &mut piece_graphics, old_pos)
@@ -183,6 +180,11 @@ fn main() {
 
         canvas.present();
         fps_manager.delay_frame();
+
+        if game_won {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            break
+        }
     }
 }
 
