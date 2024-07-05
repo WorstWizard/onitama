@@ -14,12 +14,12 @@ impl Piece {
             _ => false,
         }
     }
-    pub fn is_blue(&self) -> bool {
-        match self {
-            Piece::BlueDisciple | Piece::BlueSensei => true,
-            _ => false,
-        }
-    }
+    // pub fn is_blue(&self) -> bool {
+    //     match self {
+    //         Piece::BlueDisciple | Piece::BlueSensei => true,
+    //         _ => false,
+    //     }
+    // }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -54,6 +54,7 @@ pub struct Board {
     red_cards: (Card, Card),
     blue_cards: (Card, Card),
     transfer_card: Card,
+    winner: Option<bool>, // true if red, false if blue, None if neither
 }
 impl Board {
     #[rustfmt::skip]
@@ -72,7 +73,8 @@ impl Board {
             squares,
             red_cards: (rand_cards[0], rand_cards[1]),
             blue_cards: (rand_cards[2], rand_cards[3]),
-            transfer_card: rand_cards[4]
+            transfer_card: rand_cards[4],
+            winner: None
         }
     }
     /// Given a card, start and end position, makes a game move if it is legal and returns it
@@ -109,8 +111,20 @@ impl Board {
         }
         self.transfer_card = card;
 
-        // Make move
+        // Check win conditions
         let captured_piece = self.squares[end_pos.to_index()];
+        match captured_piece {
+            Some(Piece::RedSensei) => self.winner = Some(false),
+            Some(Piece::BlueSensei) => self.winner = Some(true),
+            _ => (),
+        }
+        match (moved_piece.unwrap(), end_pos) {
+            (Piece::RedSensei, Pos(0, 2)) => self.winner = Some(true),
+            (Piece::BlueSensei, Pos(4, 2)) => self.winner = Some(false),
+            _ => (),
+        }
+
+        // Make move
         self.red_to_move = !self.red_to_move;
         self.squares[start_pos.to_index()] = None;
         self.squares[end_pos.to_index()] = Some(moved_piece.unwrap());
@@ -124,10 +138,14 @@ impl Board {
         })
     }
 
-    /// Undo the previous move
-    pub fn undo_move(&mut self) {
-        !todo!()
+    pub fn winner(&self) -> Option<bool> {
+        self.winner
     }
+
+    /// Undo the previous move
+    // pub fn undo_move(&mut self) {
+    //     !todo!()
+    // }
 
     pub fn legal_moves_from_pos(&self, start_pos: Pos) -> Vec<GameMove> {
         let mut legal_moves = Vec::with_capacity(2 * cards::LARGEST_CARD);

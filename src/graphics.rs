@@ -410,13 +410,25 @@ impl CardGraphicManager {
     pub fn swap_cards(&mut self) {
         let selected_card = self.selected_card().unwrap();
         if selected_card.game_card == self.red_cards.0.game_card {
-            std::mem::swap(&mut self.red_cards.0.game_card, &mut self.transfer_card.game_card);
+            std::mem::swap(
+                &mut self.red_cards.0.game_card,
+                &mut self.transfer_card.game_card,
+            );
         } else if selected_card.game_card == self.red_cards.1.game_card {
-            std::mem::swap(&mut self.red_cards.1.game_card, &mut self.transfer_card.game_card);
+            std::mem::swap(
+                &mut self.red_cards.1.game_card,
+                &mut self.transfer_card.game_card,
+            );
         } else if selected_card.game_card == self.blue_cards.0.game_card {
-            std::mem::swap(&mut self.blue_cards.0.game_card, &mut self.transfer_card.game_card);
+            std::mem::swap(
+                &mut self.blue_cards.0.game_card,
+                &mut self.transfer_card.game_card,
+            );
         } else if selected_card.game_card == self.blue_cards.1.game_card {
-            std::mem::swap(&mut self.blue_cards.0.game_card, &mut self.transfer_card.game_card);
+            std::mem::swap(
+                &mut self.blue_cards.0.game_card,
+                &mut self.transfer_card.game_card,
+            );
         }
     }
 }

@@ -100,7 +100,11 @@ fn main() {
             }
         }
 
-        fn return_piece(graphic_board: &GraphicBoard, piece_graphics: &mut PieceGraphicsManager, old_pos: Pos)  {
+        fn return_piece(
+            graphic_board: &GraphicBoard,
+            piece_graphics: &mut PieceGraphicsManager,
+            old_pos: Pos,
+        ) {
             let prev_index = old_pos.to_index();
             let corner = graphic_board.tile_corners()[prev_index];
             let piece_mut = piece_graphics.selected_piece_mut().unwrap();
@@ -109,7 +113,12 @@ fn main() {
             piece_graphics.unselect();
         }
 
-        if inputs.mouse_just_released && piece_graphics.selected_piece().is_some() && graphic_board.window_to_board_pos(inputs.mouse_pos).is_some() {
+        if inputs.mouse_just_released
+            && piece_graphics.selected_piece().is_some()
+            && graphic_board
+                .window_to_board_pos(inputs.mouse_pos)
+                .is_some()
+        {
             position_highlights.clear();
             let new_pos = graphic_board.window_to_board_pos(inputs.mouse_pos).unwrap();
             let old_pos = piece_graphics.selected_piece().unwrap().board_pos;
@@ -121,31 +130,43 @@ fn main() {
                     old_pos,
                     new_pos,
                 );
-                if let Some(game_move) = move_result {
+                if let Some(_) = move_result {
                     // If the move was legal, the move was made, update graphics
                     piece_graphics.make_move(&graphic_board, new_pos);
                     piece_graphics.unselect();
                     card_graphics.swap_cards();
                     card_graphics.unselect();
 
-                    if let Some(capture) = game_move.captured_piece {
-                        match capture {
-                            Piece::RedSensei => {
-                                println!("Blue wins!");
-                                game_won = true;
-                            },
-                            Piece::BlueSensei => {
-                                println!("Red wins!");
-                                game_won = true;
-                            },
-                            _ => ()
+                    match game_board.winner() {
+                        Some(true) => {
+                            game_won = true;
+                            println!("Red wins!")
                         }
-                        println!("Captured a {:?}", capture);
+                        Some(false) => {
+                            game_won = true;
+                            println!("Blue wins!")
+                        }
+                        None => (),
                     }
+
+                    // if let Some(capture) = game_move.captured_piece {
+                    //     match capture {
+                    //         Piece::RedSensei => {
+                    //             println!("Blue wins!");
+                    //             game_won = true;
+                    //         },
+                    //         Piece::BlueSensei => {
+                    //             println!("Red wins!");
+                    //             game_won = true;
+                    //         },
+                    //         _ => ()
+                    //     }
+                    //     println!("Captured a {:?}", capture);
+                    // }
                 } else {
                     // If the move is illegal, put the piece back
                     return_piece(&graphic_board, &mut piece_graphics, old_pos)
-                }                
+                }
             } else {
                 return_piece(&graphic_board, &mut piece_graphics, old_pos)
             }
@@ -183,7 +204,7 @@ fn main() {
 
         if game_won {
             std::thread::sleep(std::time::Duration::from_secs(1));
-            break
+            break;
         }
     }
 }
