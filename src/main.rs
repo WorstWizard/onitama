@@ -99,34 +99,71 @@ fn main() {
             }
         }
 
-        if inputs.mouse_just_released && piece_graphics.selected_piece().is_some() {
-            position_highlights.clear();
-            let new_pos = graphic_board.window_to_board_pos(inputs.mouse_pos);
-            let old_pos = piece_graphics.selected_piece().unwrap().board_pos;
-            if new_pos.is_some() && old_pos != new_pos.unwrap() {
-                // If the move is legal, make the move
-                let captured_piece = game_board.make_move(old_pos, new_pos.unwrap());
-                if let Some(piece) = captured_piece {
-                    println!("Captured a {:?}", piece);
-                }
-                piece_graphics.make_move(&graphic_board, new_pos.unwrap());
-            } else {
-                // If the move is illegal, put the piece back
-                let prev_index = old_pos.to_index();
-                let corner = graphic_board.tile_corners()[prev_index];
-                let piece_mut = piece_graphics.selected_piece_mut().unwrap();
-                piece_mut.x = corner.0;
-                piece_mut.y = corner.1;
-            }
+        fn return_piece(graphic_board: &GraphicBoard, piece_graphics: &mut PieceGraphicsManager, old_pos: Pos)  {
+            let prev_index = old_pos.to_index();
+            let corner = graphic_board.tile_corners()[prev_index];
+            let piece_mut = piece_graphics.selected_piece_mut().unwrap();
+            piece_mut.x = corner.0;
+            piece_mut.y = corner.1;
             piece_graphics.unselect();
-            card_graphics.unselect();
+        }
+
+        if inputs.mouse_just_released && piece_graphics.selected_piece().is_some() && graphic_board.window_to_board_pos(inputs.mouse_pos).is_some() {
+            position_highlights.clear();
+            let new_pos = graphic_board.window_to_board_pos(inputs.mouse_pos).unwrap();
+            let old_pos = piece_graphics.selected_piece().unwrap().board_pos;
+            // Shouldn't be possible to have no selected card if there's a selected piece, but checking anyway for good measure
+            if old_pos != new_pos && card_graphics.selected_card().is_some() {
+                // Attempt to make move
+                let move_result = game_board.make_move(
+                    card_graphics.selected_card().unwrap().card(),
+                    old_pos,
+                    new_pos,
+                );
+                if let Some(game_move) = move_result {
+                    // If the move was legal, the move was made, update graphics
+                    
+                    if let Some(capture) = game_move.captured_piece {
+                        match capture {
+                            Piece::RedSensei => {
+                                println!("Blue wins!");
+                                // Rest on the laurels a moment
+                                std::thread::sleep(std::time::Duration::from_secs(1));
+                                break 'main
+                            },
+                            Piece::BlueSensei => {
+                                // Rest on the laurels a moment
+                                std::thread::sleep(std::time::Duration::from_secs(1));
+                                println!("Red wins!");
+                                break 'main
+                            },
+                            _ => ()
+                        }
+                        println!("Captured a {:?}", capture);
+                    }
+                    piece_graphics.make_move(&graphic_board, new_pos);
+                    piece_graphics.unselect();
+                    card_graphics.swap_cards();
+                    card_graphics.unselect();
+                } else {
+                    // If the move is illegal, put the piece back
+                    return_piece(&graphic_board, &mut piece_graphics, old_pos)
+                }                
+            } else {
+                return_piece(&graphic_board, &mut piece_graphics, old_pos)
+            }
         } else if inputs.mouse_just_pressed {
             if let Some(pos) = graphic_board.window_to_board_pos(inputs.mouse_pos) {
                 let piece = game_board.squares()[pos.to_index()];
-                if piece.is_some_and(|piece| piece.is_red() == game_board.red_to_move()) {
+                if piece.is_some_and(|piece| piece.is_red() == game_board.red_to_move())
+                    && card_graphics.selected_card().is_some()
+                {
                     piece_graphics.select_at_pos(pos);
+                    let selected_card = card_graphics.selected_card().unwrap().card();
                     let legal_moves = game_board.legal_moves_from_pos(pos);
-                    let end_positions = legal_moves.iter().map(|mov| mov.end_pos);
+                    let end_positions = legal_moves
+                        .iter()
+                        .filter_map(|mov| (mov.used_card == selected_card).then_some(mov.end_pos));
                     position_highlights.extend(end_positions);
                 }
             } else {

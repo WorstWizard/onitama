@@ -269,6 +269,9 @@ impl GraphicCard {
     pub fn new(game_card: Card, rect: Rect) -> Self {
         Self { game_card, rect }
     }
+    pub fn card(&self) -> Card {
+        self.game_card
+    }
     pub fn draw(&self, canvas: &mut Canvas<Window>, upwards: bool, selected: bool) {
         const LINEWIDTH: i32 = 5;
         const BG_COLOR: Color = Color::RGB(200, 200, 170);
@@ -284,8 +287,8 @@ impl GraphicCard {
         canvas.fill_rect(self.rect).unwrap();
 
         let (x, y) = (self.rect.x(), self.rect.y());
-        let sub_rect_w = (self.rect.width() - 6*LINEWIDTH as u32) / 5;
-        let sub_rect_h = (self.rect.height() - 6*LINEWIDTH as u32) / 5;
+        let sub_rect_w = (self.rect.width() - 6 * LINEWIDTH as u32) / 5;
+        let sub_rect_h = (self.rect.height() - 6 * LINEWIDTH as u32) / 5;
         // let sub_rect_w = self.rect.width() / 5;
         // let sub_rect_h = self.rect.height() / 5;
         let offsets = if upwards {
@@ -389,6 +392,9 @@ impl CardGraphicManager {
     pub fn unselect(&mut self) {
         self.selected_card = None
     }
+    pub fn selected_card(&self) -> Option<&GraphicCard> {
+        self.selected_card.as_ref()
+    }
     pub fn draw(&self, canvas: &mut Canvas<Window>, red_to_move: bool) {
         self.red_cards.0.draw(canvas, true, false);
         self.red_cards.1.draw(canvas, true, false);
@@ -397,6 +403,20 @@ impl CardGraphicManager {
         self.transfer_card.draw(canvas, red_to_move, false);
         if let Some(card) = &self.selected_card {
             card.draw(canvas, red_to_move, true);
+        }
+    }
+    /// Swaps selected card with transfer card
+    /// Assumes a card is selected, panics otherwise
+    pub fn swap_cards(&mut self) {
+        let selected_card = self.selected_card().unwrap();
+        if selected_card.game_card == self.red_cards.0.game_card {
+            std::mem::swap(&mut self.red_cards.0.game_card, &mut self.transfer_card.game_card);
+        } else if selected_card.game_card == self.red_cards.1.game_card {
+            std::mem::swap(&mut self.red_cards.1.game_card, &mut self.transfer_card.game_card);
+        } else if selected_card.game_card == self.blue_cards.0.game_card {
+            std::mem::swap(&mut self.blue_cards.0.game_card, &mut self.transfer_card.game_card);
+        } else if selected_card.game_card == self.blue_cards.1.game_card {
+            std::mem::swap(&mut self.blue_cards.0.game_card, &mut self.transfer_card.game_card);
         }
     }
 }

@@ -40,7 +40,7 @@ impl Pos {
     }
 }
 
-pub struct Move {
+pub struct GameMove {
     pub start_pos: Pos,
     pub end_pos: Pos,
     pub used_card: Card,
@@ -75,17 +75,53 @@ impl Board {
             transfer_card: rand_cards[4]
         }
     }
-    // Does not check legality of move, just makes it
-    // Returns which piece is captured if any
-    pub fn make_move(&mut self, from: Pos, to: Pos) -> Option<Piece> {
+    /// Given a card, start and end position, makes a game move if it is legal and returns it
+    pub fn make_move(&mut self, card: Card, start_pos: Pos, end_pos: Pos) -> Option<GameMove> {
+        // Is a piece chosen, and does it belong to the current player
+        let moved_piece = self.squares[start_pos.to_index()];
+        if !moved_piece.is_some_and(|piece| piece.is_red() == self.red_to_move) {
+            return None;
+        }
+
+        // Do the positions correspond with a move possible by that card
+        let offset = Pos(end_pos.0 - start_pos.0, end_pos.1 - start_pos.1);
+        let card_offsets = if self.red_to_move {
+            card.offsets()
+        } else {
+            card.rev_offsets()
+        };
+        if !card_offsets.contains(&offset) {
+            return None;
+        }
+
+        // Does the used card belong to the current player
+        // Since this is the final check, the cards can be swapped immediately
+        if self.red_to_move && card == self.red_cards.0 {
+            self.red_cards.0 = self.transfer_card
+        } else if self.red_to_move && card == self.red_cards.1 {
+            self.red_cards.1 = self.transfer_card
+        } else if !self.red_to_move && card == self.blue_cards.0 {
+            self.blue_cards.0 = self.transfer_card
+        } else if !self.red_to_move && card == self.blue_cards.1 {
+            self.blue_cards.1 = self.transfer_card
+        } else {
+            return None;
+        }
+        self.transfer_card = card;
+
+        // Make move
+        let captured_piece = self.squares[end_pos.to_index()];
         self.red_to_move = !self.red_to_move;
-        let from_piece = self.squares[from.to_index()];
-        let to_piece = self.squares[to.to_index()];
+        self.squares[start_pos.to_index()] = None;
+        self.squares[end_pos.to_index()] = Some(moved_piece.unwrap());
 
-        self.squares[from.to_index()] = None;
-        self.squares[to.to_index()] = from_piece;
-
-        to_piece
+        Some(GameMove {
+            start_pos,
+            end_pos,
+            captured_piece,
+            used_card: card,
+            moved_piece: moved_piece.unwrap(),
+        })
     }
 
     /// Undo the previous move
@@ -93,7 +129,7 @@ impl Board {
         !todo!()
     }
 
-    pub fn legal_moves_from_pos(&self, start_pos: Pos) -> Vec<Move> {
+    pub fn legal_moves_from_pos(&self, start_pos: Pos) -> Vec<GameMove> {
         let mut legal_moves = Vec::with_capacity(2 * cards::LARGEST_CARD);
         let moved_piece = match self.squares[start_pos.to_index()] {
             Some(piece) => piece,
@@ -114,7 +150,7 @@ impl Board {
                         || captured_piece
                             .is_some_and(|piece| piece.is_red() != moved_piece.is_red())
                     {
-                        legal_moves.push(Move {
+                        legal_moves.push(GameMove {
                             start_pos,
                             end_pos,
                             used_card: card,
