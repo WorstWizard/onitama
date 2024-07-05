@@ -11,17 +11,16 @@ impl Piece {
     pub fn is_red(&self) -> bool {
         match self {
             Piece::RedDisciple | Piece::RedSensei => true,
-            _ => false
+            _ => false,
         }
     }
     pub fn is_blue(&self) -> bool {
         match self {
             Piece::BlueDisciple | Piece::BlueSensei => true,
-            _ => false
+            _ => false,
         }
     }
 }
-
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Pos(pub i8, pub i8);
@@ -46,7 +45,7 @@ pub struct Move {
     pub end_pos: Pos,
     pub used_card: Card,
     pub moved_piece: Piece,
-    pub captured_piece: Option<Piece>
+    pub captured_piece: Option<Piece>,
 }
 
 pub struct Board {
@@ -54,7 +53,7 @@ pub struct Board {
     red_to_move: bool,
     red_cards: (Card, Card),
     blue_cards: (Card, Card),
-    transfer_card: Card
+    transfer_card: Card,
 }
 impl Board {
     #[rustfmt::skip]
@@ -95,25 +94,32 @@ impl Board {
     }
 
     pub fn legal_moves_from_pos(&self, start_pos: Pos) -> Vec<Move> {
-        let mut legal_moves = Vec::with_capacity(2*cards::LARGEST_CARD);
+        let mut legal_moves = Vec::with_capacity(2 * cards::LARGEST_CARD);
         let moved_piece = match self.squares[start_pos.to_index()] {
             Some(piece) => piece,
-            None => return legal_moves
+            None => return legal_moves,
         };
 
         let mut make_moves = |card: Card| {
-            let offsets = if self.red_to_move { card.offsets() } else { card.rev_offsets() };
+            let offsets = if self.red_to_move {
+                card.offsets()
+            } else {
+                card.rev_offsets()
+            };
             for offset in offsets {
                 let end_pos = start_pos.offset(offset);
                 if end_pos.in_bounds() {
                     let captured_piece = self.squares[end_pos.to_index()];
-                    if captured_piece.is_none() || captured_piece.is_some_and(|piece| piece.is_red() != moved_piece.is_red()) {
+                    if captured_piece.is_none()
+                        || captured_piece
+                            .is_some_and(|piece| piece.is_red() != moved_piece.is_red())
+                    {
                         legal_moves.push(Move {
                             start_pos,
                             end_pos,
                             used_card: card,
                             moved_piece,
-                            captured_piece
+                            captured_piece,
                         })
                     }
                 }
@@ -124,12 +130,12 @@ impl Board {
             (true, true) => {
                 make_moves(self.red_cards.0);
                 make_moves(self.red_cards.1);
-            },
+            }
             (false, false) => {
                 make_moves(self.blue_cards.0);
                 make_moves(self.blue_cards.1);
-            },
-            _ => ()
+            }
+            _ => (),
         }
         legal_moves
     }
@@ -139,7 +145,13 @@ impl Board {
     }
 
     pub fn cards(&self) -> [Card; 5] {
-        [self.red_cards.0, self.red_cards.1, self.blue_cards.0, self.blue_cards.1, self.transfer_card]
+        [
+            self.red_cards.0,
+            self.red_cards.1,
+            self.blue_cards.0,
+            self.blue_cards.1,
+            self.transfer_card,
+        ]
     }
 
     pub fn red_to_move(&self) -> bool {

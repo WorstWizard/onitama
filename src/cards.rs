@@ -8,7 +8,7 @@ pub const LARGEST_CARD: usize = 4;
 pub struct Card {
     offsets: &'static [Pos],
     rev_offsets: &'static [Pos],
-    name: &'static str
+    name: &'static str,
 }
 impl Card {
     pub fn offsets(&self) -> &[Pos] {
@@ -48,22 +48,8 @@ pub fn random_cards() -> [Card; 5] {
 }
 
 pub const ALL_CARDS: [Card; 16] = [
-    BOAR,
-    COBRA,
-    CRAB,
-    CRANE,
-    DRAGON,
-    EEL,
-    ELEPHANT,
-    FROG,
-    GOOSE,
-    HORSE,
-    MANTIS,
-    MONKEY,
-    OX,
-    RABBIT,
-    ROOSTER,
-    TIGER
+    BOAR, COBRA, CRAB, CRANE, DRAGON, EEL, ELEPHANT, FROG, GOOSE, HORSE, MANTIS, MONKEY, OX,
+    RABBIT, ROOSTER, TIGER,
 ];
 
 /// Should only be used for testing/debugging/initialization

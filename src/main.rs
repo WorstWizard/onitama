@@ -29,19 +29,27 @@ fn main() {
     canvas.set_draw_color(Color::BLACK);
     canvas.clear();
     canvas.present();
-    
+
     // Load textures for the pieces
     let tex_creator = canvas.texture_creator();
     let piece_textures = PieceTextures::init(&tex_creator);
 
     // Make game board, set up graphics
     let mut game_board = Board::new();
-    let graphic_board = GraphicBoard::new(&canvas);    
+    let graphic_board = GraphicBoard::new(&canvas);
     let mut piece_graphics =
-    PieceGraphicsManager::new(&graphic_board, &game_board, &piece_textures);
+        PieceGraphicsManager::new(&graphic_board, &game_board, &piece_textures);
     let mut position_highlights = Vec::new();
-    let card_graphics = CardGraphicManager::new(&game_board, Rect::new(graphic_board.board_width() as i32, 0, WIDTH-graphic_board.board_width(), HEIGHT));
-    
+    let mut card_graphics = CardGraphicManager::new(
+        &game_board,
+        Rect::new(
+            graphic_board.board_width() as i32,
+            0,
+            WIDTH - graphic_board.board_width(),
+            HEIGHT,
+        ),
+    );
+
     // Inputs
     let mut inputs = Inputs {
         mouse_pressed: false,
@@ -111,6 +119,7 @@ fn main() {
                 piece_mut.y = corner.1;
             }
             piece_graphics.unselect();
+            card_graphics.unselect();
         } else if inputs.mouse_just_pressed {
             if let Some(pos) = graphic_board.window_to_board_pos(inputs.mouse_pos) {
                 let piece = game_board.squares()[pos.to_index()];
@@ -120,6 +129,8 @@ fn main() {
                     let end_positions = legal_moves.iter().map(|mov| mov.end_pos);
                     position_highlights.extend(end_positions);
                 }
+            } else {
+                card_graphics.select_card(inputs.mouse_pos, game_board.red_to_move())
             }
         }
 
@@ -153,13 +164,15 @@ impl FPSManager {
     pub fn new(target_framerate: u64) -> Self {
         FPSManager {
             timer: std::time::Instant::now(),
-            target_duration_per_frame: std::time::Duration::from_millis(1000/target_framerate)
+            target_duration_per_frame: std::time::Duration::from_millis(1000 / target_framerate),
         }
     }
     pub fn delay_frame(&mut self) {
         let since_last_frame = self.timer.elapsed();
         self.timer = std::time::Instant::now();
-        let sleep_time = self.target_duration_per_frame.saturating_sub(since_last_frame);
+        let sleep_time = self
+            .target_duration_per_frame
+            .saturating_sub(since_last_frame);
         std::thread::sleep(sleep_time)
     }
 }

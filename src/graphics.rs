@@ -203,7 +203,9 @@ impl GraphicBoard {
         for pos in positions {
             let (x, y) = self.tile_corners[pos.to_index()];
             canvas.set_draw_color(COL_HIGHLIGHT);
-            canvas.fill_rect(Rect::new(x, y, self.tile_width, self.tile_width)).unwrap();
+            canvas
+                .fill_rect(Rect::new(x, y, self.tile_width, self.tile_width))
+                .unwrap();
         }
     }
     pub fn tile_corners(&self) -> &[(i32, i32); 25] {
@@ -256,82 +258,145 @@ impl<'tex> GraphicPiece<'tex> {
     }
 }
 
+#[derive(Clone)]
 pub struct GraphicCard {
     game_card: Card,
-    pub rect: Rect
+    pub rect: Rect,
 }
 impl GraphicCard {
     pub const WIDTH: u32 = 200;
     pub const HEIGHT: u32 = 200;
-    pub fn new(game_card: Card, rect: Rect) -> Self{
+    pub fn new(game_card: Card, rect: Rect) -> Self {
         Self { game_card, rect }
     }
-    pub fn draw(&self, canvas: &mut Canvas<Window>, upwards: bool) {
-        canvas.set_draw_color(Color::GREEN);
+    pub fn draw(&self, canvas: &mut Canvas<Window>, upwards: bool, selected: bool) {
+        const LINEWIDTH: i32 = 5;
+        const BG_COLOR: Color = Color::RGB(200, 200, 170);
+        const TILE_BG_COLOR: Color = Color::RGB(230, 230, 200);
+        const TILE_COLOR: Color = Color::RGB(130, 130, 100);
+        const SELECTED_COLOR: Color = Color::RGB(250, 250, 220);
+
+        if selected {
+            canvas.set_draw_color(SELECTED_COLOR);
+        } else {
+            canvas.set_draw_color(BG_COLOR);
+        }
         canvas.fill_rect(self.rect).unwrap();
 
-        let (x,y) = (self.rect.x(), self.rect.y());
-        let sub_rect_w = self.rect.width()/5;
-        let sub_rect_h = self.rect.height()/5;
-        let offsets = if upwards { self.game_card.offsets() } else { self.game_card.rev_offsets() };
-        canvas.set_draw_color(Color::WHITE);
-        canvas.fill_rect(Rect::new(
-            x + 2*sub_rect_w as i32,
-            y + 2*sub_rect_h as i32,
-            sub_rect_w,
-            sub_rect_h
-        )).unwrap();
-        for pos in offsets {
-            canvas.fill_rect(
-                Rect::new(
-                    x + (pos.1 as i32+2)*sub_rect_w as i32,
-                    y + (pos.0 as i32+2)*sub_rect_h as i32,
-                    sub_rect_w, sub_rect_h
-                )
-            ).unwrap();
+        let (x, y) = (self.rect.x(), self.rect.y());
+        let sub_rect_w = (self.rect.width() - 6*LINEWIDTH as u32) / 5;
+        let sub_rect_h = (self.rect.height() - 6*LINEWIDTH as u32) / 5;
+        // let sub_rect_w = self.rect.width() / 5;
+        // let sub_rect_h = self.rect.height() / 5;
+        let offsets = if upwards {
+            self.game_card.offsets()
+        } else {
+            self.game_card.rev_offsets()
+        };
+        canvas.set_draw_color(TILE_BG_COLOR);
+        for row in 0..5 {
+            for col in 0..5 {
+                canvas
+                    .fill_rect(Rect::new(
+                        x + LINEWIDTH + col * (sub_rect_w as i32 + LINEWIDTH),
+                        y + LINEWIDTH + row * (sub_rect_h as i32 + LINEWIDTH),
+                        sub_rect_w,
+                        sub_rect_h,
+                    ))
+                    .unwrap();
+            }
         }
-    }
-    pub fn set_pos(&mut self, x: i32, y: i32) {
-        self.rect.x = x;
-        self.rect.y = y;
+        canvas.set_draw_color(TILE_COLOR);
+        canvas
+            .fill_rect(Rect::new(
+                x + LINEWIDTH + 2 * (sub_rect_w as i32 + LINEWIDTH),
+                y + LINEWIDTH + 2 * (sub_rect_h as i32 + LINEWIDTH),
+                sub_rect_w,
+                sub_rect_h,
+            ))
+            .unwrap();
+        for pos in offsets {
+            canvas
+                .fill_rect(Rect::new(
+                    x + LINEWIDTH + (pos.1 as i32 + 2) * (sub_rect_w as i32 + LINEWIDTH),
+                    y + LINEWIDTH + (pos.0 as i32 + 2) * (sub_rect_h as i32 + LINEWIDTH),
+                    sub_rect_w,
+                    sub_rect_h,
+                ))
+                .unwrap();
+        }
     }
 }
 pub struct CardGraphicManager {
     pub red_cards: (GraphicCard, GraphicCard),
     pub blue_cards: (GraphicCard, GraphicCard),
-    pub transfer_card: GraphicCard
+    pub transfer_card: GraphicCard,
+    selected_card: Option<GraphicCard>,
 }
 impl CardGraphicManager {
     pub fn new(game_board: &Board, container_rect: Rect) -> Self {
         let cards = game_board.cards();
-        let card_w = (container_rect.width()/2).min(GraphicCard::WIDTH) as i32;
-        let card_h = (container_rect.height()/3).min(GraphicCard::HEIGHT) as i32;
+        let card_w = (container_rect.width() / 2).min(GraphicCard::WIDTH) as i32;
+        let card_h = (container_rect.height() / 3).min(GraphicCard::HEIGHT) as i32;
         let x = container_rect.x();
         let y = container_rect.y();
         let w = container_rect.width() as i32;
         let h = container_rect.height() as i32;
-        let red_card_0 = GraphicCard::new(cards[0], Rect::new(x, y+h-card_h, card_w as u32, card_h as u32));
-        let red_card_1 = GraphicCard::new(cards[1], Rect::new(x+w-card_w, y+h-card_h, card_w as u32, card_h as u32));
+        let red_card_0 = GraphicCard::new(
+            cards[0],
+            Rect::new(x, y + h - card_h, card_w as u32, card_h as u32),
+        );
+        let red_card_1 = GraphicCard::new(
+            cards[1],
+            Rect::new(x + w - card_w, y + h - card_h, card_w as u32, card_h as u32),
+        );
         let blue_card_0 = GraphicCard::new(cards[2], Rect::new(x, y, card_w as u32, card_h as u32));
-        let blue_card_1 = GraphicCard::new(cards[3], Rect::new(x+w-card_w, y, card_w as u32, card_h as u32));
-        let transfer_card = GraphicCard::new(cards[4], Rect::new(x+(w-card_w)/2, y+(h-card_h)/2, card_w as u32, card_h as u32));
+        let blue_card_1 = GraphicCard::new(
+            cards[3],
+            Rect::new(x + w - card_w, y, card_w as u32, card_h as u32),
+        );
+        let transfer_card = GraphicCard::new(
+            cards[4],
+            Rect::new(
+                x + (w - card_w) / 2,
+                y + (h - card_h) / 2,
+                card_w as u32,
+                card_h as u32,
+            ),
+        );
         Self {
-            red_cards: (
-                red_card_0,
-                red_card_1
-            ),
-            blue_cards: (
-                blue_card_0,
-                blue_card_1
-            ),
-            transfer_card
+            red_cards: (red_card_0, red_card_1),
+            blue_cards: (blue_card_0, blue_card_1),
+            transfer_card,
+            selected_card: None,
         }
     }
+    pub fn select_card(&mut self, clicked_pos: (i32, i32), red_to_move: bool) {
+        if red_to_move {
+            if self.red_cards.0.rect.contains_point(clicked_pos) {
+                self.selected_card = Some(self.red_cards.0.clone())
+            } else if self.red_cards.1.rect.contains_point(clicked_pos) {
+                self.selected_card = Some(self.red_cards.1.clone())
+            }
+        } else {
+            if self.blue_cards.0.rect.contains_point(clicked_pos) {
+                self.selected_card = Some(self.blue_cards.0.clone())
+            } else if self.blue_cards.1.rect.contains_point(clicked_pos) {
+                self.selected_card = Some(self.blue_cards.1.clone())
+            }
+        }
+    }
+    pub fn unselect(&mut self) {
+        self.selected_card = None
+    }
     pub fn draw(&self, canvas: &mut Canvas<Window>, red_to_move: bool) {
-        self.red_cards.0.draw(canvas, true);
-        self.red_cards.1.draw(canvas, true);
-        self.blue_cards.0.draw(canvas, false);
-        self.blue_cards.1.draw(canvas, false);
-        self.transfer_card.draw(canvas, red_to_move);
+        self.red_cards.0.draw(canvas, true, false);
+        self.red_cards.1.draw(canvas, true, false);
+        self.blue_cards.0.draw(canvas, false, false);
+        self.blue_cards.1.draw(canvas, false, false);
+        self.transfer_card.draw(canvas, red_to_move, false);
+        if let Some(card) = &self.selected_card {
+            card.draw(canvas, red_to_move, true);
+        }
     }
 }
