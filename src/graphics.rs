@@ -1,5 +1,4 @@
 use sdl2::image::LoadTexture;
-use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
@@ -7,9 +6,19 @@ use sdl2::video::{Window, WindowContext};
 use crate::cards::Card;
 use crate::game::*;
 
-const COL_TILE: Color = Color::WHITE;
-const COL_LINES: Color = Color::GRAY;
-const COL_HIGHLIGHT: Color = Color::YELLOW;
+mod Colors {
+    use sdl2::pixels::Color;
+    pub const BOARD_TILE: Color = Color::WHITE;
+    pub const BOARD_BG: Color = Color::GRAY;
+    pub const BOARD_HIGHLIGHT: Color = Color::YELLOW;
+    pub const BOARD_RED_TEMPLE: Color = Color::RGB(200, 50, 50);
+    pub const BOARD_BLUE_TEMPLE: Color = Color::RGB(50, 50, 200);
+    pub const CARD_BG: Color = Color::RGB(200, 200, 170);
+    pub const CARD_TILE_BG: Color = Color::RGB(230, 230, 200);
+    pub const CARD_TILE: Color = Color::RGB(130, 130, 100);
+    pub const CARD_SELECTED: Color = Color::RGB(250, 250, 220);
+    pub const CARD_CENTER: Color = Color::RGB(80, 80, 40);
+}
 
 pub struct PieceGraphicsManager<'tex> {
     piece_graphics: Vec<GraphicPiece<'tex>>,
@@ -141,7 +150,6 @@ impl<'a> PieceTextures<'a> {
     }
 }
 
-const LINEWIDTH: u32 = 10; //px
 /// Draws board and provides offsets for individual tiles
 pub struct GraphicBoard {
     x: i32,
@@ -153,6 +161,8 @@ pub struct GraphicBoard {
 }
 impl GraphicBoard {
     pub fn new(canvas: &Canvas<Window>) -> Self {
+        const LINEWIDTH: u32 = 10; //px
+
         let screen_size = canvas.output_size().unwrap();
         let board_width = u32::min(screen_size.0, screen_size.1);
         let tile_width = (board_width - LINEWIDTH * 6) / 5;
@@ -182,7 +192,7 @@ impl GraphicBoard {
         }
     }
     pub fn draw_board(&self, canvas: &mut Canvas<Window>) {
-        canvas.set_draw_color(COL_LINES);
+        canvas.set_draw_color(Colors::BOARD_BG);
         canvas
             .fill_rect(Rect::new(
                 self.x,
@@ -192,17 +202,26 @@ impl GraphicBoard {
             ))
             .unwrap();
 
-        canvas.set_draw_color(COL_TILE);
+        canvas.set_draw_color(Colors::BOARD_TILE);
         for (x, y) in self.tile_corners() {
             canvas
                 .fill_rect(Rect::new(*x, *y, self.tile_width, self.tile_width))
                 .unwrap();
         }
+        // Draw temples
+        let w = self.tile_width / 3;
+        let h = self.tile_width / 4;
+        let red_start_corner = self.tile_corners[22];
+        let blue_start_corner = self.tile_corners[2];
+        canvas.set_draw_color(Colors::BOARD_RED_TEMPLE);
+        canvas.fill_rect(Rect::new(red_start_corner.0 + w as i32, red_start_corner.1 + 3*h as i32, w, h)).unwrap();
+        canvas.set_draw_color(Colors::BOARD_BLUE_TEMPLE);
+        canvas.fill_rect(Rect::new(blue_start_corner.0 + w as i32, blue_start_corner.1, w, h)).unwrap();
     }
     pub fn highlight_tiles(&self, canvas: &mut Canvas<Window>, positions: &[Pos]) {
         for pos in positions {
             let (x, y) = self.tile_corners[pos.to_index()];
-            canvas.set_draw_color(COL_HIGHLIGHT);
+            canvas.set_draw_color(Colors::BOARD_HIGHLIGHT);
             canvas
                 .fill_rect(Rect::new(x, y, self.tile_width, self.tile_width))
                 .unwrap();
@@ -264,8 +283,9 @@ pub struct GraphicCard {
     pub rect: Rect,
 }
 impl GraphicCard {
-    pub const WIDTH: u32 = 200;
-    pub const HEIGHT: u32 = 200;
+    const WIDTH: u32 = 200;
+    const HEIGHT: u32 = 200;
+
     pub fn new(game_card: Card, rect: Rect) -> Self {
         Self { game_card, rect }
     }
@@ -274,16 +294,11 @@ impl GraphicCard {
     }
     pub fn draw(&self, canvas: &mut Canvas<Window>, upwards: bool, selected: bool) {
         const LINEWIDTH: i32 = 5;
-        const BG_COLOR: Color = Color::RGB(200, 200, 170);
-        const TILE_BG_COLOR: Color = Color::RGB(230, 230, 200);
-        const TILE_COLOR: Color = Color::RGB(130, 130, 100);
-        const SELECTED_COLOR: Color = Color::RGB(250, 250, 220);
-        const CENTER_COLOR: Color = Color::RGB(80, 80, 40);
 
         if selected {
-            canvas.set_draw_color(SELECTED_COLOR);
+            canvas.set_draw_color(Colors::CARD_SELECTED);
         } else {
-            canvas.set_draw_color(BG_COLOR);
+            canvas.set_draw_color(Colors::CARD_BG);
         }
         canvas.fill_rect(self.rect).unwrap();
 
@@ -297,7 +312,7 @@ impl GraphicCard {
         } else {
             self.game_card.rev_offsets()
         };
-        canvas.set_draw_color(TILE_BG_COLOR);
+        canvas.set_draw_color(Colors::CARD_TILE_BG);
         for row in 0..5 {
             for col in 0..5 {
                 canvas
@@ -310,7 +325,7 @@ impl GraphicCard {
                     .unwrap();
             }
         }
-        canvas.set_draw_color(TILE_COLOR);
+        canvas.set_draw_color(Colors::CARD_TILE);
         for pos in offsets {
             canvas
                 .fill_rect(Rect::new(
@@ -321,7 +336,7 @@ impl GraphicCard {
                 ))
                 .unwrap();
         }
-        canvas.set_draw_color(CENTER_COLOR);
+        canvas.set_draw_color(Colors::CARD_CENTER);
         canvas
             .fill_rect(Rect::new(
                 x + LINEWIDTH + 2 * (sub_rect_w as i32 + LINEWIDTH),
