@@ -278,6 +278,7 @@ impl GraphicCard {
         const TILE_BG_COLOR: Color = Color::RGB(230, 230, 200);
         const TILE_COLOR: Color = Color::RGB(130, 130, 100);
         const SELECTED_COLOR: Color = Color::RGB(250, 250, 220);
+        const CENTER_COLOR: Color = Color::RGB(80, 80, 40);
 
         if selected {
             canvas.set_draw_color(SELECTED_COLOR);
@@ -310,14 +311,6 @@ impl GraphicCard {
             }
         }
         canvas.set_draw_color(TILE_COLOR);
-        canvas
-            .fill_rect(Rect::new(
-                x + LINEWIDTH + 2 * (sub_rect_w as i32 + LINEWIDTH),
-                y + LINEWIDTH + 2 * (sub_rect_h as i32 + LINEWIDTH),
-                sub_rect_w,
-                sub_rect_h,
-            ))
-            .unwrap();
         for pos in offsets {
             canvas
                 .fill_rect(Rect::new(
@@ -328,6 +321,15 @@ impl GraphicCard {
                 ))
                 .unwrap();
         }
+        canvas.set_draw_color(CENTER_COLOR);
+        canvas
+            .fill_rect(Rect::new(
+                x + LINEWIDTH + 2 * (sub_rect_w as i32 + LINEWIDTH),
+                y + LINEWIDTH + 2 * (sub_rect_h as i32 + LINEWIDTH),
+                sub_rect_w,
+                sub_rect_h,
+            ))
+            .unwrap();
     }
 }
 pub struct CardGraphicManager {
