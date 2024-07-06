@@ -14,15 +14,9 @@ impl Piece {
             _ => false,
         }
     }
-    // pub fn is_blue(&self) -> bool {
-    //     match self {
-    //         Piece::BlueDisciple | Piece::BlueSensei => true,
-    //         _ => false,
-    //     }
-    // }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Pos(pub i8, pub i8);
 impl Pos {
     pub fn to_index(self) -> usize {
@@ -48,6 +42,7 @@ pub struct GameMove {
     pub captured_piece: Option<Piece>,
 }
 
+#[derive(Clone)]
 pub struct Board {
     squares: [Option<Piece>; 25],
     red_to_move: bool,
@@ -140,6 +135,23 @@ impl Board {
 
     pub fn winner(&self) -> Option<bool> {
         self.winner
+    }
+
+    pub fn red_positions(&self) -> Vec<Pos> {
+        self.color_positions(true)
+    }
+    pub fn blue_positions(&self) -> Vec<Pos> {
+        self.color_positions(false)
+    }
+    fn color_positions(&self, red_pieces: bool) -> Vec<Pos> {
+        self.squares
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, opt)| {
+            opt.is_some_and(|piece| piece.is_red() == red_pieces)
+                .then_some(Pos::from_index(i))
+        })
+        .collect()
     }
 
     /// Undo the previous move
