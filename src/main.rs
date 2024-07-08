@@ -205,7 +205,8 @@ fn main() {
         } else if AI_OPPONENT {
             // AI Takes turn
             std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-            let ai_move = ai::RandomMover::suggest_move(game_board.clone(), false);
+            // let ai_move = ai::RandomMover::suggest_move(game_board.clone(), false);
+            let ai_move = ai::MinMax::suggest_move(game_board.clone(), false);
             game_board.make_move(ai_move.used_card, ai_move.start_pos, ai_move.end_pos);
             card_graphics.select_card(ai_move.used_card); // Select card now, swap after animation finishes
             piece_graphics.make_move(&graphic_board, ai_move.start_pos, ai_move.end_pos);
