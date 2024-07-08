@@ -103,50 +103,49 @@ impl Board {
         }
 
         // Does the used card belong to the current player
-        // Since this is the final check, the cards can be swapped immediately
-        if self.red_to_move && card == self.red_cards.0 {
-            self.red_cards.0 = self.transfer_card
-        } else if self.red_to_move && card == self.red_cards.1 {
-            self.red_cards.1 = self.transfer_card
-        } else if !self.red_to_move && card == self.blue_cards.0 {
-            self.blue_cards.0 = self.transfer_card
-        } else if !self.red_to_move && card == self.blue_cards.1 {
-            self.blue_cards.1 = self.transfer_card
-        } else {
-            return None;
-        }
-        let transferred_card = self.transfer_card;
-        self.transfer_card = card;
-
-        // Check win conditions
-        let captured_piece = self.squares[end_pos.to_index()];
-        match captured_piece {
-            Some(Piece::RedSensei) => self.winner = Some(false),
-            Some(Piece::BlueSensei) => self.winner = Some(true),
-            _ => (),
-        }
-        match (moved_piece.unwrap(), end_pos) {
-            (Piece::RedSensei, Pos(0, 2)) => self.winner = Some(true),
-            (Piece::BlueSensei, Pos(4, 2)) => self.winner = Some(false),
-            _ => (),
-        }
-
-        // Make move
-        self.red_to_move = !self.red_to_move;
-        self.squares[start_pos.to_index()] = None;
-        self.squares[end_pos.to_index()] = Some(moved_piece.unwrap());
+        let belongs_to_player = (self.red_to_move && (card == self.red_cards.0 || card == self.red_cards.1)) || (!self.red_to_move && (card == self.blue_cards.0 || card == self.blue_cards.1));
+        if !belongs_to_player { return None }
 
         let game_move = GameMove {
             start_pos,
             end_pos,
             captured_piece,
             used_card: card,
-            transferred_card,
+            transferred_card: self.transfer_card,
             moved_piece: moved_piece.unwrap(),
         };
 
-        self.move_history.push(game_move.clone());
+        self.make_move_unchecked(game_move.clone());
         Some(game_move)
+    }
+
+    /// Takes a `Gamemove` and performs it, ignoring legality
+    pub fn make_move_unchecked(&mut self, game_move: GameMove) {
+        let captured_piece = self.squares[game_move.end_pos.to_index()];
+        match captured_piece {
+            Some(Piece::RedSensei) => self.winner = Some(false),
+            Some(Piece::BlueSensei) => self.winner = Some(true),
+            _ => (),
+        }
+        match (game_move.moved_piece, game_move.end_pos) {
+            (Piece::RedSensei, Pos(0, 2)) => self.winner = Some(true),
+            (Piece::BlueSensei, Pos(4, 2)) => self.winner = Some(false),
+            _ => (),
+        }
+        if self.red_cards.0 == game_move.used_card {
+            self.red_cards.0 = self.transfer_card
+        } else if self.red_cards.1 == game_move.used_card {
+            self.red_cards.1 = self.transfer_card
+        } else if self.blue_cards.0 == game_move.used_card {
+            self.blue_cards.0 = self.transfer_card
+        } else if self.blue_cards.1 == game_move.used_card {
+            self.blue_cards.1 = self.transfer_card
+        }
+        self.transfer_card = game_move.used_card;
+        self.red_to_move = !self.red_to_move;
+        self.squares[game_move.start_pos.to_index()] = None;
+        self.squares[game_move.end_pos.to_index()] = Some(game_move.moved_piece);
+        self.move_history.push(game_move);
     }
 
     pub fn winner(&self) -> Option<bool> {
