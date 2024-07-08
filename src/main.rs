@@ -1,6 +1,7 @@
 use ai::AIOpponent;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::mixer::{self, LoaderRWops};
 use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
 
@@ -22,6 +23,14 @@ fn main() {
     let sdl_ctx = sdl2::init().unwrap();
     let video_subsystem = sdl_ctx.video().unwrap();
 
+    mixer::open_audio(mixer::DEFAULT_FREQUENCY, mixer::DEFAULT_FORMAT, mixer::DEFAULT_CHANNELS, 1024).unwrap();
+    let audio_loader = sdl2::rwops::RWops::from_file("assets/tap_sound.wav", "r").unwrap();
+    let tap_sound = audio_loader.load_wav().unwrap();
+
+    let play_tap = || {
+        mixer::Channel::all().play(&tap_sound, 0).unwrap();
+    };
+    
     let window = video_subsystem
         .window("Onitama", WIDTH, HEIGHT)
         .position_centered()
@@ -115,7 +124,8 @@ fn main() {
                 delta_time.as_secs_f32(),
             );
             if finished_animation {
-                piece_graphics.unselect()
+                piece_graphics.unselect();
+                play_tap();
             }
         } else if game_board.red_to_move() || !AI_OPPONENT {
             fn return_piece(
@@ -154,6 +164,7 @@ fn main() {
                         piece_graphics.unselect();
                         card_graphics.swap_cards();
                         card_graphics.unselect();
+                        play_tap();
                     } else {
                         // If the move is illegal, put the piece back
                         return_piece(&graphic_board, &mut piece_graphics, old_pos)
