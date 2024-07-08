@@ -50,8 +50,8 @@ impl<'tex> PieceGraphicsManager<'tex> {
                 let mut new_piece = GraphicPiece::new(texture, board_pos);
                 new_piece.x = corner.0;
                 new_piece.y = corner.1;
-                new_piece.width = graphic_board.tile_width as u32;
-                new_piece.height = graphic_board.tile_width as u32;
+                new_piece.width = graphic_board.tile_width;
+                new_piece.height = graphic_board.tile_width;
                 piece_graphics[i] = Some(new_piece);
             }
         }
@@ -83,10 +83,8 @@ impl<'tex> PieceGraphicsManager<'tex> {
         None
     }
     pub fn draw(&self, canvas: &mut Canvas<Window>) {
-        for opt in &self.piece_graphics {
-            if let Some(piece) = opt {
-                piece.draw(canvas)
-            }
+        for piece in self.piece_graphics.iter().flatten() {
+            piece.draw(canvas)
         }
         if let Some(i) = self.selected_index {
             self.piece_graphics[i].as_ref().unwrap().draw(canvas)
@@ -401,12 +399,10 @@ impl CardGraphicManager {
             } else if self.red_cards.1.rect.contains_point(clicked_pos) {
                 self.selected_card = Some(self.red_cards.1.clone())
             }
-        } else {
-            if self.blue_cards.0.rect.contains_point(clicked_pos) {
-                self.selected_card = Some(self.blue_cards.0.clone())
-            } else if self.blue_cards.1.rect.contains_point(clicked_pos) {
-                self.selected_card = Some(self.blue_cards.1.clone())
-            }
+        } else if self.blue_cards.0.rect.contains_point(clicked_pos) {
+            self.selected_card = Some(self.blue_cards.0.clone())
+        } else if self.blue_cards.1.rect.contains_point(clicked_pos) {
+            self.selected_card = Some(self.blue_cards.1.clone())
         }
     }
     pub fn select_card(&mut self, card: Card) {

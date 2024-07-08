@@ -1,5 +1,5 @@
 use crate::game::*;
-use tinyrand::{Rand, RandRange, StdRand, Seeded};
+use tinyrand::{Rand, RandRange, Seeded, StdRand};
 use tinyrand_std::ClockSeed;
 
 pub trait AIOpponent {
@@ -13,14 +13,14 @@ impl AIOpponent for RandomMover {
         // for game_move in &legal_moves {
         //     println!("{:?}", game_move.end_pos);
         // }
-        let mut rng = StdRand::seed(ClockSeed::default().next_u64());
+        let mut rng = StdRand::seed(ClockSeed.next_u64());
         let i = rng.next_range(0..legal_moves.len());
         legal_moves.into_iter().nth(i).unwrap()
     }
 }
 
 const MAX_DEPTH: u32 = 2;
-const WIN_SCORE: i32 = i32::MAX/2;
+const WIN_SCORE: i32 = i32::MAX / 2;
 pub struct MinMax {}
 impl AIOpponent for MinMax {
     fn suggest_move(mut board: Board, red_to_move: bool) -> GameMove {
@@ -43,7 +43,7 @@ impl MinMax {
         if depth == MAX_DEPTH || board.winner().is_some() {
             return Self::board_eval(board, red_to_move);
         }
-        let legal_moves = get_legal_moves(&board, red_to_move);
+        let legal_moves = get_legal_moves(board, red_to_move);
         let mut best_eval = i32::MIN;
         for candidate_move in legal_moves {
             board.make_move_unchecked(candidate_move.clone());
@@ -62,13 +62,11 @@ impl MinMax {
             }
         }
         let mut piece_val_sum = 0;
-        for square in board.squares() {
-            if let Some(piece) = square {
-                if piece.is_red() == red_to_move {
-                    piece_val_sum += 100;
-                } else {
-                    piece_val_sum -= 100;
-                }
+        for piece in board.squares().iter().flatten() {
+            if piece.is_red() == red_to_move {
+                piece_val_sum += 100;
+            } else {
+                piece_val_sum -= 100;
             }
         }
         piece_val_sum

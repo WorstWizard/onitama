@@ -11,10 +11,7 @@ pub enum Piece {
 }
 impl Piece {
     pub fn is_red(&self) -> bool {
-        match self {
-            Piece::RedDisciple | Piece::RedSensei => true,
-            _ => false,
-        }
+        matches!(self, Piece::RedDisciple | Piece::RedSensei)
     }
 }
 
@@ -54,7 +51,7 @@ pub struct Board {
     blue_cards: (Card, Card),
     transfer_card: Card,
     winner: Option<bool>, // true if red, false if blue, None if neither
-    move_history: Vec<GameMove>
+    move_history: Vec<GameMove>,
 }
 impl Board {
     #[rustfmt::skip]
@@ -103,8 +100,12 @@ impl Board {
         }
 
         // Does the used card belong to the current player
-        let belongs_to_player = (self.red_to_move && (card == self.red_cards.0 || card == self.red_cards.1)) || (!self.red_to_move && (card == self.blue_cards.0 || card == self.blue_cards.1));
-        if !belongs_to_player { return None }
+        let belongs_to_player = (self.red_to_move
+            && (card == self.red_cards.0 || card == self.red_cards.1))
+            || (!self.red_to_move && (card == self.blue_cards.0 || card == self.blue_cards.1));
+        if !belongs_to_player {
+            return None;
+        }
 
         let game_move = GameMove {
             start_pos,

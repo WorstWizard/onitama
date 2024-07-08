@@ -1,3 +1,4 @@
+#![allow(clippy::double_neg)]
 use crate::game::Pos;
 use tinyrand::{Rand, RandRange, Seeded, StdRand};
 use tinyrand_std::ClockSeed;
@@ -12,10 +13,10 @@ pub struct Card {
 }
 impl Card {
     pub fn offsets(&self) -> &[Pos] {
-        &self.offsets
+        self.offsets
     }
     pub fn rev_offsets(&self) -> &[Pos] {
-        &self.rev_offsets
+        self.rev_offsets
     }
 }
 macro_rules! new_card {
@@ -29,7 +30,7 @@ macro_rules! new_card {
 }
 
 pub fn random_cards() -> [Card; 5] {
-    let seed = ClockSeed::default().next_u64();
+    let seed = ClockSeed.next_u64();
     let mut rand = StdRand::seed(seed);
     let mut indices = Vec::with_capacity(5);
     while indices.len() < 5 {

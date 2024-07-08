@@ -23,14 +23,20 @@ fn main() {
     let sdl_ctx = sdl2::init().unwrap();
     let video_subsystem = sdl_ctx.video().unwrap();
 
-    mixer::open_audio(mixer::DEFAULT_FREQUENCY, mixer::DEFAULT_FORMAT, mixer::DEFAULT_CHANNELS, 1024).unwrap();
+    mixer::open_audio(
+        mixer::DEFAULT_FREQUENCY,
+        mixer::DEFAULT_FORMAT,
+        mixer::DEFAULT_CHANNELS,
+        1024,
+    )
+    .unwrap();
     let audio_loader = sdl2::rwops::RWops::from_file("assets/tap_sound.wav", "r").unwrap();
     let tap_sound = audio_loader.load_wav().unwrap();
 
     let play_tap = || {
         mixer::Channel::all().play(&tap_sound, 0).unwrap();
     };
-    
+
     let window = video_subsystem
         .window("Onitama", WIDTH, HEIGHT)
         .position_centered()
@@ -162,7 +168,7 @@ fn main() {
                         old_pos,
                         new_pos,
                     );
-                    if let Some(_) = move_result {
+                    if move_result.is_some() {
                         // If the move was legal, the move was made, update graphics
                         piece_graphics.make_move(&graphic_board, old_pos, new_pos);
                         piece_graphics.unselect();
@@ -210,7 +216,7 @@ fn main() {
             game_board.make_move(ai_move.used_card, ai_move.start_pos, ai_move.end_pos);
             card_graphics.select_card(ai_move.used_card); // Select card now, swap after animation finishes
             piece_graphics.make_move(&graphic_board, ai_move.start_pos, ai_move.end_pos);
-            
+
             // Piece animation
             let from_corner = graphic_board.tile_corners()[ai_move.start_pos.to_index()];
             let to_corner = graphic_board.tile_corners()[ai_move.end_pos.to_index()];
@@ -229,7 +235,10 @@ fn main() {
         canvas.present();
         fps_manager.delay_frame();
 
-        if !move_animator.as_ref().is_some_and(|animator| animator.animating()) {
+        if !move_animator
+            .as_ref()
+            .is_some_and(|animator| animator.animating())
+        {
             match game_board.winner() {
                 Some(true) => {
                     std::thread::sleep(std::time::Duration::from_secs(1));
