@@ -150,13 +150,13 @@ impl Board {
     }
     fn color_positions(&self, red_pieces: bool) -> Vec<Pos> {
         self.squares
-        .into_iter()
-        .enumerate()
-        .filter_map(|(i, opt)| {
-            opt.is_some_and(|piece| piece.is_red() == red_pieces)
-                .then_some(Pos::from_index(i))
-        })
-        .collect()
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, opt)| {
+                opt.is_some_and(|piece| piece.is_red() == red_pieces)
+                    .then_some(Pos::from_index(i))
+            })
+            .collect()
     }
 
     /// Undo the previous move

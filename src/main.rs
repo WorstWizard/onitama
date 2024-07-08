@@ -53,6 +53,9 @@ fn main() {
         ),
     );
 
+    // Animator for sliding pieces
+    let mut move_animator: Option<MoveAnimator> = None;
+
     // Inputs
     let mut inputs = Inputs {
         mouse_pressed: false,
@@ -62,7 +65,6 @@ fn main() {
     };
 
     // Start event loop
-    let mut game_won = false;
     let mut fps_manager = FPSManager::new(FRAMERATE);
     let mut event_pump = sdl_ctx.event_pump().unwrap();
     'main: loop {
@@ -103,8 +105,19 @@ fn main() {
             }
         }
 
-
-        if game_board.red_to_move() || !AI_OPPONENT {
+        if move_animator
+            .as_ref()
+            .is_some_and(|animator| animator.animating())
+        {
+            let delta_time = fps_manager.time_per_frame();
+            let finished_animation = move_animator.as_mut().unwrap().animate(
+                piece_graphics.selected_piece_mut().unwrap(),
+                delta_time.as_secs_f32(),
+            );
+            if finished_animation {
+                piece_graphics.unselect()
+            }
+        } else if game_board.red_to_move() || !AI_OPPONENT {
             fn return_piece(
                 graphic_board: &GraphicBoard,
                 piece_graphics: &mut PieceGraphicsManager,
@@ -117,7 +130,7 @@ fn main() {
                 piece_mut.y = corner.1;
                 piece_graphics.unselect();
             }
-    
+
             if inputs.mouse_just_released
                 && piece_graphics.selected_piece().is_some()
                 && graphic_board
@@ -141,18 +154,6 @@ fn main() {
                         piece_graphics.unselect();
                         card_graphics.swap_cards();
                         card_graphics.unselect();
-    
-                        match game_board.winner() {
-                            Some(true) => {
-                                game_won = true;
-                                println!("Red wins!")
-                            }
-                            Some(false) => {
-                                game_won = true;
-                                println!("Blue wins!")
-                            }
-                            None => (),
-                        }
                     } else {
                         // If the move is illegal, put the piece back
                         return_piece(&graphic_board, &mut piece_graphics, old_pos)
@@ -160,7 +161,7 @@ fn main() {
                 } else {
                     return_piece(&graphic_board, &mut piece_graphics, old_pos)
                 }
-    
+
             // Mouse just clicked, pick up piece to move or select card
             } else if inputs.mouse_just_pressed {
                 if let Some(pos) = graphic_board.window_to_board_pos(inputs.mouse_pos) {
@@ -171,16 +172,16 @@ fn main() {
                         piece_graphics.select_at_pos(pos);
                         let selected_card = card_graphics.selected_card().unwrap().card();
                         let legal_moves = game_board.legal_moves_from_pos(pos);
-                        let end_positions = legal_moves
-                            .iter()
-                            .filter_map(|mov| (mov.used_card == selected_card).then_some(mov.end_pos));
+                        let end_positions = legal_moves.iter().filter_map(|mov| {
+                            (mov.used_card == selected_card).then_some(mov.end_pos)
+                        });
                         position_highlights.extend(end_positions);
                     }
                 } else {
                     card_graphics.select_by_click(inputs.mouse_pos, game_board.red_to_move())
                 }
             }
-    
+
             // If piece is held, move it under cursor
             if let Some(piece) = piece_graphics.selected_piece_mut() {
                 piece.x = inputs.mouse_pos.0 - (piece.width / 2) as i32;
@@ -190,11 +191,18 @@ fn main() {
             // AI Takes turn
             std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
             let ai_move = ai::RandomMover::suggest_move(game_board.clone(), false);
-            println!("AI moved {:?} from {:?} to {:?}", ai_move.moved_piece, ai_move.start_pos, ai_move.end_pos);
             game_board.make_move(ai_move.used_card, ai_move.start_pos, ai_move.end_pos);
-            piece_graphics.make_move(&graphic_board, ai_move.start_pos, ai_move.end_pos);
             card_graphics.select_card(ai_move.used_card);
             card_graphics.swap_cards();
+            piece_graphics.make_move(&graphic_board, ai_move.start_pos, ai_move.end_pos);
+
+            // Piece animation
+            let from_corner = graphic_board.tile_corners()[ai_move.start_pos.to_index()];
+            let to_corner = graphic_board.tile_corners()[ai_move.end_pos.to_index()];
+            let mut animator = MoveAnimator::new(from_corner, to_corner);
+            piece_graphics.select_at_pos(ai_move.end_pos); // Select the piece so it can be referenced by the animator
+            animator.animate(piece_graphics.selected_piece_mut().unwrap(), 0.001);
+            move_animator = Some(animator);
         }
 
         // Draw screen
@@ -206,9 +214,20 @@ fn main() {
         canvas.present();
         fps_manager.delay_frame();
 
-        if game_won {
-            std::thread::sleep(std::time::Duration::from_secs(1));
-            break;
+        if !move_animator.as_ref().is_some_and(|animator| animator.animating()) {
+            match game_board.winner() {
+                Some(true) => {
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                    println!("Red wins!");
+                    break;
+                }
+                Some(false) => {
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                    println!("Blue wins!");
+                    break;
+                }
+                None => (),
+            }
         }
     }
 }
@@ -238,5 +257,8 @@ impl FPSManager {
             .target_duration_per_frame
             .saturating_sub(since_last_frame);
         std::thread::sleep(sleep_time)
+    }
+    pub fn time_per_frame(&self) -> std::time::Duration {
+        self.target_duration_per_frame
     }
 }

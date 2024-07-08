@@ -84,14 +84,16 @@ impl<'tex> PieceGraphicsManager<'tex> {
     }
     pub fn draw(&self, canvas: &mut Canvas<Window>) {
         for opt in &self.piece_graphics {
-            if let Some(piece) = opt { piece.draw(canvas) }
+            if let Some(piece) = opt {
+                piece.draw(canvas)
+            }
         }
         if let Some(i) = self.selected_index {
             self.piece_graphics[i].as_ref().unwrap().draw(canvas)
         }
     }
     /// Moves a piece from one board position to another, deleting a piece if one is already present
-    /// Unselects the held piece
+    /// Unselects any held piece
     /// Does not check whether the move is legal, or the move is on top of itself
     pub fn make_move(&mut self, graphic_board: &GraphicBoard, from: Pos, to: Pos) {
         self.unselect();
@@ -414,10 +416,18 @@ impl CardGraphicManager {
                 idx = Some(i)
             }
         }
-        if let Some(i) = idx { self.selected_card = Some(self.cards()[i].clone()) }
+        if let Some(i) = idx {
+            self.selected_card = Some(self.cards()[i].clone())
+        }
     }
     fn cards(&self) -> [&GraphicCard; 5] {
-        [&self.red_cards.0, &self.red_cards.1, &self.blue_cards.0, &self.blue_cards.1, &self.transfer_card]
+        [
+            &self.red_cards.0,
+            &self.red_cards.1,
+            &self.blue_cards.0,
+            &self.blue_cards.1,
+            &self.transfer_card,
+        ]
     }
     pub fn unselect(&mut self) {
         self.selected_card = None
@@ -461,5 +471,40 @@ impl CardGraphicManager {
             );
         }
         self.selected_card = None;
+    }
+}
+
+const ANIM_TIME: f32 = 1.0;
+pub struct MoveAnimator {
+    animating: bool,
+    time: f32,
+    start_point: (i32, i32),
+    end_point: (i32, i32),
+}
+impl MoveAnimator {
+    pub fn new(start_point: (i32, i32), end_point: (i32, i32)) -> Self {
+        Self {
+            animating: true,
+            time: 0.0,
+            start_point,
+            end_point,
+        }
+    }
+    pub fn animating(&self) -> bool {
+        self.animating
+    }
+    /// Animates the piece, returns true if the animation is over
+    pub fn animate(&mut self, piece: &mut GraphicPiece, delta_time: f32) -> bool {
+        self.time += delta_time;
+        if self.time >= ANIM_TIME {
+            self.time = ANIM_TIME;
+            self.animating = false
+        }
+        fn lerp(a: i32, b: i32, t: f32) -> i32 {
+            (a as f32 * (1.0 - t) + b as f32 * t) as i32
+        }
+        piece.x = lerp(self.start_point.0, self.end_point.0, self.time / ANIM_TIME);
+        piece.y = lerp(self.start_point.1, self.end_point.1, self.time / ANIM_TIME);
+        !self.animating
     }
 }
