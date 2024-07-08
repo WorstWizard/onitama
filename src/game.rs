@@ -1,4 +1,4 @@
-use std::hash::{Hash, Hasher};
+// use std::hash::{Hash, Hasher};
 
 use crate::cards::{self, Card};
 
@@ -175,6 +175,7 @@ impl Board {
         // self.hash(&mut hasher);
         // println!("hash of board before undo {}", hasher.finish());
         let last_move = self.move_history.pop().unwrap();
+        self.winner = None;
         self.red_to_move = !self.red_to_move;
         self.squares[last_move.start_pos.to_index()] = Some(last_move.moved_piece);
         self.squares[last_move.end_pos.to_index()] = last_move.captured_piece;
