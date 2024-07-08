@@ -16,7 +16,7 @@ mod cards;
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
 const FRAMERATE: u64 = 60;
-const AI_OPPONENT: bool = false;
+const AI_OPPONENT: bool = true;
 
 fn main() {
     // Set up SDL, window, most graphics
@@ -128,6 +128,7 @@ fn main() {
             );
             if finished_animation {
                 piece_graphics.unselect();
+                card_graphics.swap_cards();
                 play_tap();
             }
         } else if game_board.red_to_move() || !AI_OPPONENT {
@@ -206,10 +207,9 @@ fn main() {
             std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
             let ai_move = ai::RandomMover::suggest_move(game_board.clone(), false);
             game_board.make_move(ai_move.used_card, ai_move.start_pos, ai_move.end_pos);
-            card_graphics.select_card(ai_move.used_card);
-            card_graphics.swap_cards();
+            card_graphics.select_card(ai_move.used_card); // Select card now, swap after animation finishes
             piece_graphics.make_move(&graphic_board, ai_move.start_pos, ai_move.end_pos);
-
+            
             // Piece animation
             let from_corner = graphic_board.tile_corners()[ai_move.start_pos.to_index()];
             let to_corner = graphic_board.tile_corners()[ai_move.end_pos.to_index()];
