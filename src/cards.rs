@@ -4,7 +4,7 @@ use tinyrand_std::ClockSeed;
 
 pub const LARGEST_CARD: usize = 4;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Card {
     offsets: &'static [Pos],
     rev_offsets: &'static [Pos],

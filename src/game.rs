@@ -1,6 +1,8 @@
+use std::hash::{Hash, Hasher};
+
 use crate::cards::{self, Card};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Hash)]
 pub enum Piece {
     RedDisciple = 0b00,
     RedSensei = 0b01,
@@ -16,7 +18,7 @@ impl Piece {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct Pos(pub i8, pub i8);
 impl Pos {
     pub fn to_index(self) -> usize {
@@ -34,15 +36,17 @@ impl Pos {
     }
 }
 
+#[derive(Clone, Hash)]
 pub struct GameMove {
     pub start_pos: Pos,
     pub end_pos: Pos,
     pub used_card: Card,
+    pub transferred_card: Card,
     pub moved_piece: Piece,
     pub captured_piece: Option<Piece>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Hash)]
 pub struct Board {
     squares: [Option<Piece>; 25],
     red_to_move: bool,
@@ -50,6 +54,7 @@ pub struct Board {
     blue_cards: (Card, Card),
     transfer_card: Card,
     winner: Option<bool>, // true if red, false if blue, None if neither
+    move_history: Vec<GameMove>
 }
 impl Board {
     #[rustfmt::skip]
@@ -69,7 +74,8 @@ impl Board {
             red_cards: (rand_cards[0], rand_cards[1]),
             blue_cards: (rand_cards[2], rand_cards[3]),
             transfer_card: rand_cards[4],
-            winner: None
+            winner: None,
+            move_history: Vec::with_capacity(20)
         }
     }
     /// Given a card, start and end position, makes a game move if it is legal and returns it
@@ -109,6 +115,7 @@ impl Board {
         } else {
             return None;
         }
+        let transferred_card = self.transfer_card;
         self.transfer_card = card;
 
         // Check win conditions
@@ -129,13 +136,17 @@ impl Board {
         self.squares[start_pos.to_index()] = None;
         self.squares[end_pos.to_index()] = Some(moved_piece.unwrap());
 
-        Some(GameMove {
+        let game_move = GameMove {
             start_pos,
             end_pos,
             captured_piece,
             used_card: card,
+            transferred_card,
             moved_piece: moved_piece.unwrap(),
-        })
+        };
+
+        self.move_history.push(game_move.clone());
+        Some(game_move)
     }
 
     pub fn winner(&self) -> Option<bool> {
@@ -160,9 +171,28 @@ impl Board {
     }
 
     /// Undo the previous move
-    // pub fn undo_move(&mut self) {
-    //     !todo!()
-    // }
+    pub fn undo_move(&mut self) {
+        // let mut hasher = std::hash::DefaultHasher::default();
+        // self.hash(&mut hasher);
+        // println!("hash of board before undo {}", hasher.finish());
+        let last_move = self.move_history.pop().unwrap();
+        self.red_to_move = !self.red_to_move;
+        self.squares[last_move.start_pos.to_index()] = Some(last_move.moved_piece);
+        self.squares[last_move.end_pos.to_index()] = last_move.captured_piece;
+        self.transfer_card = last_move.transferred_card;
+        if self.red_cards.0 == last_move.transferred_card {
+            self.red_cards.0 = last_move.used_card;
+        } else if self.red_cards.1 == last_move.transferred_card {
+            self.red_cards.1 = last_move.used_card;
+        } else if self.blue_cards.0 == last_move.transferred_card {
+            self.blue_cards.0 = last_move.used_card;
+        } else if self.blue_cards.1 == last_move.transferred_card {
+            self.blue_cards.1 = last_move.used_card;
+        }
+        // let mut hasher = std::hash::DefaultHasher::default();
+        // self.hash(&mut hasher);
+        // println!("hash of board after undo {}", hasher.finish());
+    }
 
     pub fn legal_moves_from_pos(&self, start_pos: Pos) -> Vec<GameMove> {
         let mut legal_moves = Vec::with_capacity(2 * cards::LARGEST_CARD);
@@ -189,6 +219,7 @@ impl Board {
                             start_pos,
                             end_pos,
                             used_card: card,
+                            transferred_card: self.transfer_card,
                             moved_piece,
                             captured_piece,
                         })

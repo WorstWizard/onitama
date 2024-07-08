@@ -16,7 +16,7 @@ mod cards;
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
 const FRAMERATE: u64 = 60;
-const AI_OPPONENT: bool = true;
+const AI_OPPONENT: bool = false;
 
 fn main() {
     // Set up SDL, window, most graphics
@@ -90,6 +90,9 @@ fn main() {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'main,
+                // Event::KeyDown { keycode: Some(Keycode::U), .. } => {
+                //     game_board.undo_move();
+                // },
                 Event::MouseButtonDown {
                     mouse_btn: MouseButton::Left,
                     x,
