@@ -79,6 +79,11 @@ impl Board {
         if !moved_piece.is_some_and(|piece| piece.is_red() == self.red_to_move) {
             return None;
         }
+        // Is a piece captured, and does it belong to the current player
+        let captured_piece = self.squares[end_pos.to_index()];
+        if captured_piece.is_some_and(|piece| piece.is_red() == moved_piece.unwrap().is_red()) {
+            return None;
+        }
 
         // Do the positions correspond with a move possible by that card
         let offset = Pos(end_pos.0 - start_pos.0, end_pos.1 - start_pos.1);
