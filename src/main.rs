@@ -15,7 +15,7 @@ mod cards;
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
 const FRAMERATE: u64 = 60;
-const AI_OPPONENT: bool = true;
+const AI_OPPONENT: bool = false;
 
 fn main() {
     // Set up SDL, window, most graphics
@@ -137,7 +137,7 @@ fn main() {
                     );
                     if let Some(_) = move_result {
                         // If the move was legal, the move was made, update graphics
-                        piece_graphics.make_move(&graphic_board, new_pos);
+                        piece_graphics.make_move(&graphic_board, old_pos, new_pos);
                         piece_graphics.unselect();
                         card_graphics.swap_cards();
                         card_graphics.unselect();

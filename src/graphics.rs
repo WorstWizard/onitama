@@ -6,7 +6,7 @@ use sdl2::video::{Window, WindowContext};
 use crate::cards::Card;
 use crate::game::*;
 
-mod Colors {
+mod colors {
     use sdl2::pixels::Color;
     pub const BOARD_TILE: Color = Color::WHITE;
     pub const BOARD_BG: Color = Color::GRAY;
@@ -21,8 +21,8 @@ mod Colors {
 }
 
 pub struct PieceGraphicsManager<'tex> {
-    piece_graphics: Vec<GraphicPiece<'tex>>,
-    selected_piece: Option<usize>,
+    piece_graphics: [Option<GraphicPiece<'tex>>; 25],
+    selected_index: Option<usize>,
 }
 impl<'tex> PieceGraphicsManager<'tex> {
     pub fn new(
@@ -31,7 +31,8 @@ impl<'tex> PieceGraphicsManager<'tex> {
         textures: &'tex PieceTextures<'tex>,
     ) -> Self {
         // Create a separate graphics object for each piece
-        let mut piece_graphics = Vec::with_capacity(10);
+        const ARR_INIT: Option<GraphicPiece> = None;
+        let mut piece_graphics = [ARR_INIT; 25];
         for (i, (corner, piece)) in graphic_board
             .tile_corners()
             .iter()
@@ -51,76 +52,61 @@ impl<'tex> PieceGraphicsManager<'tex> {
                 new_piece.y = corner.1;
                 new_piece.width = graphic_board.tile_width as u32;
                 new_piece.height = graphic_board.tile_width as u32;
-                piece_graphics.push(new_piece);
+                piece_graphics[i] = Some(new_piece);
             }
         }
         PieceGraphicsManager {
             piece_graphics,
-            selected_piece: None,
+            selected_index: None,
         }
     }
     pub fn remove_at_pos(&mut self, pos: Pos) {
-        match self
-            .piece_graphics
-            .iter()
-            .enumerate()
-            .find(|(_, piece)| piece.board_pos == pos)
-        {
-            Some((i, _)) => {
-                // Very important: If the selected piece is the last one, the index should be swapped too
-                if self
-                    .selected_piece
-                    .is_some_and(|selected_i| selected_i == self.piece_graphics.len() - 1)
-                {
-                    self.selected_piece = Some(i)
-                }
-                self.piece_graphics.swap_remove(i);
-            }
-            None => (),
-        }
+        self.piece_graphics[pos.to_index()] = None;
     }
     pub fn select_at_pos(&mut self, pos: Pos) {
-        for (i, piece) in self.piece_graphics.iter().enumerate() {
-            if piece.board_pos == pos {
-                self.selected_piece = Some(i);
-                return;
-            }
+        if self.piece_graphics[pos.to_index()].is_some() {
+            self.selected_index = Some(pos.to_index())
+        } else {
+            self.selected_index = None
         }
-        self.selected_piece = None;
     }
     pub fn selected_piece(&mut self) -> Option<&GraphicPiece<'tex>> {
-        if let Some(i) = self.selected_piece {
-            return self.piece_graphics.get(i);
+        if let Some(i) = self.selected_index {
+            return self.piece_graphics[i].as_ref();
         }
         None
     }
     pub fn selected_piece_mut(&mut self) -> Option<&mut GraphicPiece<'tex>> {
-        if let Some(i) = self.selected_piece {
-            return self.piece_graphics.get_mut(i);
+        if let Some(i) = self.selected_index {
+            return self.piece_graphics[i].as_mut();
         }
         None
     }
     pub fn draw(&self, canvas: &mut Canvas<Window>) {
-        for piece in &self.piece_graphics {
-            piece.draw(canvas)
+        for opt in &self.piece_graphics {
+            if let Some(piece) = opt { piece.draw(canvas) }
         }
-        if let Some(idx) = self.selected_piece {
-            self.piece_graphics[idx].draw(canvas)
+        if let Some(i) = self.selected_index {
+            self.piece_graphics[i].as_ref().unwrap().draw(canvas)
         }
     }
-    /// Moves currently selected piece from one board position to another, deleting a piece if one is already present
+    /// Moves a piece from one board position to another, deleting a piece if one is already present
+    /// Unselects the held piece
     /// Does not check whether the move is legal, or the move is on top of itself
-    pub fn make_move(&mut self, graphic_board: &GraphicBoard, to: Pos) {
+    pub fn make_move(&mut self, graphic_board: &GraphicBoard, from: Pos, to: Pos) {
+        self.unselect();
         self.remove_at_pos(to);
-        let piece_mut = self.selected_piece_mut().unwrap();
+        self.piece_graphics[to.to_index()] = self.piece_graphics[from.to_index()].take();
+        self.piece_graphics[from.to_index()] = None;
+        let to_corner = graphic_board.tile_corners()[to.to_index()];
+        let piece_mut = self.piece_graphics[to.to_index()].as_mut().unwrap();
         piece_mut.board_pos = to;
-        let corner = graphic_board.tile_corners()[to.to_index()];
-        piece_mut.x = corner.0;
-        piece_mut.y = corner.1;
+        piece_mut.x = to_corner.0;
+        piece_mut.y = to_corner.1;
     }
 
     pub fn unselect(&mut self) {
-        self.selected_piece = None;
+        self.selected_index = None;
     }
 }
 
@@ -192,7 +178,7 @@ impl GraphicBoard {
         }
     }
     pub fn draw_board(&self, canvas: &mut Canvas<Window>) {
-        canvas.set_draw_color(Colors::BOARD_BG);
+        canvas.set_draw_color(colors::BOARD_BG);
         canvas
             .fill_rect(Rect::new(
                 self.x,
@@ -202,7 +188,7 @@ impl GraphicBoard {
             ))
             .unwrap();
 
-        canvas.set_draw_color(Colors::BOARD_TILE);
+        canvas.set_draw_color(colors::BOARD_TILE);
         for (x, y) in self.tile_corners() {
             canvas
                 .fill_rect(Rect::new(*x, *y, self.tile_width, self.tile_width))
@@ -213,15 +199,29 @@ impl GraphicBoard {
         let h = self.tile_width / 4;
         let red_start_corner = self.tile_corners[22];
         let blue_start_corner = self.tile_corners[2];
-        canvas.set_draw_color(Colors::BOARD_RED_TEMPLE);
-        canvas.fill_rect(Rect::new(red_start_corner.0 + w as i32, red_start_corner.1 + 3*h as i32, w, h)).unwrap();
-        canvas.set_draw_color(Colors::BOARD_BLUE_TEMPLE);
-        canvas.fill_rect(Rect::new(blue_start_corner.0 + w as i32, blue_start_corner.1, w, h)).unwrap();
+        canvas.set_draw_color(colors::BOARD_RED_TEMPLE);
+        canvas
+            .fill_rect(Rect::new(
+                red_start_corner.0 + w as i32,
+                red_start_corner.1 + 3 * h as i32,
+                w,
+                h,
+            ))
+            .unwrap();
+        canvas.set_draw_color(colors::BOARD_BLUE_TEMPLE);
+        canvas
+            .fill_rect(Rect::new(
+                blue_start_corner.0 + w as i32,
+                blue_start_corner.1,
+                w,
+                h,
+            ))
+            .unwrap();
     }
     pub fn highlight_tiles(&self, canvas: &mut Canvas<Window>, positions: &[Pos]) {
         for pos in positions {
             let (x, y) = self.tile_corners[pos.to_index()];
-            canvas.set_draw_color(Colors::BOARD_HIGHLIGHT);
+            canvas.set_draw_color(colors::BOARD_HIGHLIGHT);
             canvas
                 .fill_rect(Rect::new(x, y, self.tile_width, self.tile_width))
                 .unwrap();
@@ -245,6 +245,7 @@ impl GraphicBoard {
 }
 
 /// Tracks and draws an individual piece
+#[derive(Clone)]
 pub struct GraphicPiece<'tex> {
     pub x: i32,
     pub y: i32,
@@ -296,9 +297,9 @@ impl GraphicCard {
         const LINEWIDTH: i32 = 5;
 
         if selected {
-            canvas.set_draw_color(Colors::CARD_SELECTED);
+            canvas.set_draw_color(colors::CARD_SELECTED);
         } else {
-            canvas.set_draw_color(Colors::CARD_BG);
+            canvas.set_draw_color(colors::CARD_BG);
         }
         canvas.fill_rect(self.rect).unwrap();
 
@@ -312,7 +313,7 @@ impl GraphicCard {
         } else {
             self.game_card.rev_offsets()
         };
-        canvas.set_draw_color(Colors::CARD_TILE_BG);
+        canvas.set_draw_color(colors::CARD_TILE_BG);
         for row in 0..5 {
             for col in 0..5 {
                 canvas
@@ -325,7 +326,7 @@ impl GraphicCard {
                     .unwrap();
             }
         }
-        canvas.set_draw_color(Colors::CARD_TILE);
+        canvas.set_draw_color(colors::CARD_TILE);
         for pos in offsets {
             canvas
                 .fill_rect(Rect::new(
@@ -336,7 +337,7 @@ impl GraphicCard {
                 ))
                 .unwrap();
         }
-        canvas.set_draw_color(Colors::CARD_CENTER);
+        canvas.set_draw_color(colors::CARD_CENTER);
         canvas
             .fill_rect(Rect::new(
                 x + LINEWIDTH + 2 * (sub_rect_w as i32 + LINEWIDTH),
