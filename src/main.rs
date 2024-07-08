@@ -15,7 +15,7 @@ mod cards;
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
 const FRAMERATE: u64 = 60;
-const AI_OPPONENT: bool = false;
+const AI_OPPONENT: bool = true;
 
 fn main() {
     // Set up SDL, window, most graphics
@@ -177,7 +177,7 @@ fn main() {
                         position_highlights.extend(end_positions);
                     }
                 } else {
-                    card_graphics.select_card(inputs.mouse_pos, game_board.red_to_move())
+                    card_graphics.select_by_click(inputs.mouse_pos, game_board.red_to_move())
                 }
             }
     
@@ -192,7 +192,9 @@ fn main() {
             let ai_move = ai::RandomMover::suggest_move(game_board.clone(), false);
             println!("AI moved {:?} from {:?} to {:?}", ai_move.moved_piece, ai_move.start_pos, ai_move.end_pos);
             game_board.make_move(ai_move.used_card, ai_move.start_pos, ai_move.end_pos);
-            piece_graphics.select_at_pos(ai_move.start_pos);
+            piece_graphics.make_move(&graphic_board, ai_move.start_pos, ai_move.end_pos);
+            card_graphics.select_card(ai_move.used_card);
+            card_graphics.swap_cards();
         }
 
         // Draw screen

@@ -392,7 +392,7 @@ impl CardGraphicManager {
             selected_card: None,
         }
     }
-    pub fn select_card(&mut self, clicked_pos: (i32, i32), red_to_move: bool) {
+    pub fn select_by_click(&mut self, clicked_pos: (i32, i32), red_to_move: bool) {
         if red_to_move {
             if self.red_cards.0.rect.contains_point(clicked_pos) {
                 self.selected_card = Some(self.red_cards.0.clone())
@@ -406,6 +406,18 @@ impl CardGraphicManager {
                 self.selected_card = Some(self.blue_cards.1.clone())
             }
         }
+    }
+    pub fn select_card(&mut self, card: Card) {
+        let mut idx = None;
+        for (i, graphic_card) in self.cards().into_iter().enumerate() {
+            if graphic_card.game_card == card {
+                idx = Some(i)
+            }
+        }
+        if let Some(i) = idx { self.selected_card = Some(self.cards()[i].clone()) }
+    }
+    fn cards(&self) -> [&GraphicCard; 5] {
+        [&self.red_cards.0, &self.red_cards.1, &self.blue_cards.0, &self.blue_cards.1, &self.transfer_card]
     }
     pub fn unselect(&mut self) {
         self.selected_card = None
@@ -444,9 +456,10 @@ impl CardGraphicManager {
             );
         } else if selected_card.game_card == self.blue_cards.1.game_card {
             std::mem::swap(
-                &mut self.blue_cards.0.game_card,
+                &mut self.blue_cards.1.game_card,
                 &mut self.transfer_card.game_card,
             );
         }
+        self.selected_card = None;
     }
 }
