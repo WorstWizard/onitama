@@ -3,12 +3,12 @@ use tinyrand::{Rand, RandRange, Seeded, StdRand};
 use tinyrand_std::ClockSeed;
 
 pub trait AIOpponent {
-    fn suggest_move(board: Board, red_to_move: bool) -> GameMove;
+    fn suggest_move(&self, board: Board, red_to_move: bool) -> GameMove;
 }
 
 pub struct RandomMover {}
 impl AIOpponent for RandomMover {
-    fn suggest_move(board: Board, red_to_move: bool) -> GameMove {
+    fn suggest_move(&self, board: Board, red_to_move: bool) -> GameMove {
         let legal_moves = get_legal_moves(&board, red_to_move);
         // for game_move in &legal_moves {
         //     println!("{:?}", game_move.end_pos);
@@ -19,16 +19,17 @@ impl AIOpponent for RandomMover {
     }
 }
 
-const MAX_DEPTH: u32 = 2;
 const WIN_SCORE: i32 = i32::MAX / 2;
-pub struct MinMax {}
+pub struct MinMax {
+    max_depth: u32,
+}
 impl AIOpponent for MinMax {
-    fn suggest_move(mut board: Board, red_to_move: bool) -> GameMove {
+    fn suggest_move(&self, mut board: Board, red_to_move: bool) -> GameMove {
         let legal_moves = get_legal_moves(&board, red_to_move);
         let mut best_move = (legal_moves[0].clone(), i32::MIN);
         for candidate_move in legal_moves {
             board.make_move_unchecked(candidate_move.clone());
-            let eval = -Self::minmax(&mut board, !red_to_move, 1);
+            let eval = -self.minmax(&mut board, !red_to_move, 1);
             if eval > best_move.1 {
                 best_move = (candidate_move, eval)
             }
@@ -39,15 +40,18 @@ impl AIOpponent for MinMax {
     }
 }
 impl MinMax {
-    fn minmax(board: &mut Board, red_to_move: bool, depth: u32) -> i32 {
-        if depth == MAX_DEPTH || board.winner().is_some() {
+    pub fn new(max_depth: u32) -> Self {
+        Self { max_depth }
+    }
+    fn minmax(&self, board: &mut Board, red_to_move: bool, depth: u32) -> i32 {
+        if depth == self.max_depth || board.winner().is_some() {
             return Self::board_eval(board, red_to_move);
         }
         let legal_moves = get_legal_moves(board, red_to_move);
         let mut best_eval = i32::MIN;
         for candidate_move in legal_moves {
             board.make_move_unchecked(candidate_move.clone());
-            let eval = -Self::minmax(board, !red_to_move, depth + 1);
+            let eval = -self.minmax(board, !red_to_move, depth + 1);
             best_eval = best_eval.max(eval);
             board.undo_move();
         }

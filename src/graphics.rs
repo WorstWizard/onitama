@@ -3,6 +3,8 @@ use sdl2::rect::Rect;
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 
+const ANIM_TIME: f32 = 0.25;
+
 use crate::cards::Card;
 use crate::game::*;
 
@@ -470,7 +472,6 @@ impl CardGraphicManager {
     }
 }
 
-const ANIM_TIME: f32 = 1.0;
 pub struct MoveAnimator {
     animating: bool,
     time: f32,

@@ -17,6 +17,9 @@ const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
 const FRAMERATE: u64 = 60;
 const AI_OPPONENT: bool = true;
+const AI_VERSUS_AI: bool = false;
+const RED_AI_MAX_DEPTH: u32 = 4;
+const BLUE_AI_MAX_DEPTH: u32 = 5;
 
 fn main() {
     // Set up SDL, window, most graphics
@@ -70,6 +73,10 @@ fn main() {
 
     // Animator for sliding pieces
     let mut move_animator: Option<MoveAnimator> = None;
+
+    // AI's
+    let red_ai = ai::MinMax::new(RED_AI_MAX_DEPTH);
+    let blue_ai = ai::MinMax::new(BLUE_AI_MAX_DEPTH);
 
     // Inputs
     let mut inputs = Inputs {
@@ -137,7 +144,7 @@ fn main() {
                 card_graphics.swap_cards();
                 play_tap();
             }
-        } else if game_board.red_to_move() || !AI_OPPONENT {
+        } else if !AI_VERSUS_AI && (!AI_OPPONENT || game_board.red_to_move()) {
             fn return_piece(
                 graphic_board: &GraphicBoard,
                 piece_graphics: &mut PieceGraphicsManager,
@@ -208,11 +215,14 @@ fn main() {
                 piece.x = inputs.mouse_pos.0 - (piece.width / 2) as i32;
                 piece.y = inputs.mouse_pos.1 - (piece.height / 2) as i32;
             }
-        } else if AI_OPPONENT {
+        } else if AI_OPPONENT || AI_VERSUS_AI {
             // AI Takes turn
-            std::thread::sleep(std::time::Duration::from_secs_f32(0.5));
-            // let ai_move = ai::RandomMover::suggest_move(game_board.clone(), false);
-            let ai_move = ai::MinMax::suggest_move(game_board.clone(), false);
+            let ai_move = if game_board.red_to_move() {
+                red_ai.suggest_move(game_board.clone(), true)
+            } else {
+                blue_ai.suggest_move(game_board.clone(), false)
+            };
+
             game_board.make_move(ai_move.used_card, ai_move.start_pos, ai_move.end_pos);
             card_graphics.select_card(ai_move.used_card); // Select card now, swap after animation finishes
             piece_graphics.make_move(&graphic_board, ai_move.start_pos, ai_move.end_pos);
