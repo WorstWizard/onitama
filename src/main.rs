@@ -103,9 +103,9 @@ fn main() {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'main,
-                // Event::KeyDown { keycode: Some(Keycode::U), .. } => {
-                //     game_board.undo_move();
-                // },
+                Event::KeyDown { keycode: Some(Keycode::S), .. } => {
+                    println!("{}", game_board.save_game());
+                },
                 Event::MouseButtonDown {
                     mouse_btn: MouseButton::Left,
                     x,

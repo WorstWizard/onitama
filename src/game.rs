@@ -42,6 +42,19 @@ pub struct GameMove {
     pub moved_piece: Piece,
     pub captured_piece: Option<Piece>,
 }
+impl GameMove {
+    /// Encodes the gamemove as string notation for saving/loading
+    pub fn as_encoded_bytes(&self) -> [u8; 3] {
+        fn pos_index_to_alphabet(idx: usize) -> u8 {
+            b'a' + idx as u8
+        }
+        [
+            cards::card_identifier(&self.used_card),
+            pos_index_to_alphabet(self.start_pos.to_index()),
+            pos_index_to_alphabet(self.end_pos.to_index()),
+        ]
+    }
+}
 
 #[derive(Clone, Hash)]
 pub struct Board {
@@ -52,6 +65,7 @@ pub struct Board {
     transfer_card: Card,
     winner: Option<bool>, // true if red, false if blue, None if neither
     move_history: Vec<GameMove>,
+    default_start: bool,
 }
 impl Board {
     #[rustfmt::skip]
@@ -72,7 +86,8 @@ impl Board {
             blue_cards: (rand_cards[2], rand_cards[3]),
             transfer_card: rand_cards[4],
             winner: None,
-            move_history: Vec::with_capacity(20)
+            move_history: Vec::with_capacity(20),
+            default_start: true
         }
     }
     /// Given a card, start and end position, makes a game move if it is legal and returns it
@@ -259,5 +274,20 @@ impl Board {
 
     pub fn red_to_move(&self) -> bool {
         self.red_to_move
+    }
+
+    /// Saves board history to a string in readable format
+    pub fn save_game(&self) -> String {
+        let mut move_history_bytes = Vec::with_capacity(3*self.move_history.len());
+        for game_move in &self.move_history {
+            move_history_bytes.extend(game_move.as_encoded_bytes())
+        }
+        let move_history_str = String::from_utf8(move_history_bytes).unwrap();
+
+        if self.default_start {
+            move_history_str
+        } else {
+            todo!("save game history from non-default start")
+        }
     }
 }

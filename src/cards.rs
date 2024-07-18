@@ -52,6 +52,22 @@ pub const ALL_CARDS: [Card; 16] = [
     BOAR, COBRA, CRAB, CRANE, DRAGON, EEL, ELEPHANT, FROG, GOOSE, HORSE, MANTIS, MONKEY, OX,
     RABBIT, ROOSTER, TIGER,
 ];
+pub const ALL_CARDS_IDENT: [u8; 16] = [
+    b'B',b'C',b'Q',b'K',b'D',b'E',b'L',b'F',b'G',b'H',b'M',b'X',b'O',b'R',b'U',b'T'
+];
+
+pub fn index_of_card(card: &Card) -> usize {
+    for (i, other_card) in ALL_CARDS.iter().enumerate() {
+        if card == other_card {
+            return i
+        }
+    }
+    panic!("attempted to get index of nonexistant card!")
+}
+/// Returns an identifier for the card to be saved/loaded to a file
+pub fn card_identifier(card: &Card) -> u8 {
+    ALL_CARDS_IDENT[index_of_card(card)]
+}
 
 /// Should only be used for testing/debugging/initialization
 // pub const NULL: Card = Card { offsets: &[], rev_offsets: &[],  };
