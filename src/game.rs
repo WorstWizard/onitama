@@ -1,5 +1,7 @@
 // use std::hash::{Hash, Hasher};
 
+use std::error::Error;
+
 use crate::cards::{self, Card};
 
 #[derive(Clone, Copy, Debug, Hash)]
@@ -68,16 +70,8 @@ pub struct Board {
     default_start: bool,
 }
 impl Board {
-    #[rustfmt::skip]
     pub fn new() -> Self {
-        use Piece::*;
-        let squares = [
-            Some(BlueDisciple), Some(BlueDisciple), Some(BlueSensei), Some(BlueDisciple), Some(BlueDisciple),
-            None,               None,               None,             None,               None,
-            None,               None,               None,             None,               None,
-            None,               None,               None,             None,               None,
-            Some(RedDisciple),  Some(RedDisciple),  Some(RedSensei),  Some(RedDisciple),  Some(RedDisciple),
-        ];
+        let squares = Self::default_squares();
         let rand_cards = cards::random_cards();
         Board {
             red_to_move: true,
@@ -87,8 +81,19 @@ impl Board {
             transfer_card: rand_cards[4],
             winner: None,
             move_history: Vec::with_capacity(20),
-            default_start: true
+            default_start: true,
         }
+    }
+    #[rustfmt::skip]
+    fn default_squares() -> [Option<Piece>; 25] {
+        use Piece::*;
+        [
+            Some(BlueDisciple), Some(BlueDisciple), Some(BlueSensei), Some(BlueDisciple), Some(BlueDisciple),
+            None,               None,               None,             None,               None,
+            None,               None,               None,             None,               None,
+            None,               None,               None,             None,               None,
+            Some(RedDisciple),  Some(RedDisciple),  Some(RedSensei),  Some(RedDisciple),  Some(RedDisciple),
+        ]
     }
     /// Given a card, start and end position, makes a game move if it is legal and returns it
     pub fn make_move(&mut self, card: Card, start_pos: Pos, end_pos: Pos) -> Option<GameMove> {
@@ -276,9 +281,9 @@ impl Board {
         self.red_to_move
     }
 
-    /// Saves board history to a string in readable format
+    /// Saves board history to a string in .oni format
     pub fn save_game(&self) -> String {
-        let mut move_history_bytes = Vec::with_capacity(3*self.move_history.len());
+        let mut move_history_bytes = Vec::with_capacity(3 * self.move_history.len());
         for game_move in &self.move_history {
             move_history_bytes.extend(game_move.as_encoded_bytes())
         }
@@ -288,6 +293,76 @@ impl Board {
             move_history_str
         } else {
             todo!("save game history from non-default start")
+        }
+    }
+
+    /// Loads a saved game from .oni format
+    pub fn load_game(text: String) -> Result<Self, LoadGameError> {
+        // Ignore comment lines, whitespace and characters not of relevance
+        let filter_comments =
+            String::from_iter(text.lines().map(|line| match line.split_once('#') {
+                Some((pre, post)) => pre,
+                None => line,
+            }));
+
+        fn is_board_spec_byte(byte: u8) -> bool {
+            byte.is_ascii_digit() || byte == b'.'
+        }
+        let filtered_bytes: Vec<u8> = filter_comments
+            .bytes()
+            .filter(|byte| is_board_spec_byte(*byte))
+            .collect();
+
+        // Only the cards definition is strictly required for loading,
+        // so if the file is empty after filtering, that's the error to return
+        if filtered_bytes.is_empty() {
+            return Err(LoadGameError::CardsParse);
+        }
+
+        // If the first non-filtered character is a board spec character, try to load a board
+        let squares = if !is_board_spec_byte(filtered_bytes[0]) {
+            Self::default_squares()
+        } else {
+            // Load a non-default initial board state
+            let board_spec_bytes = filtered_bytes.get(0..25).ok_or(LoadGameError::BoardParse)?;
+            if board_spec_bytes
+                .iter()
+                .find(|&byte| is_board_spec_byte(*byte))
+                .is_some()
+            {
+                return Err(LoadGameError::BoardParse);
+            }
+            let mut squares = [None; 25];
+            for (i, byte) in board_spec_bytes.iter().enumerate() {
+                squares[i] = match byte {
+                    b'.' => None,
+                    b'0' => Some(Piece::RedDisciple),
+                    b'1' => Some(Piece::BlueDisciple),
+                    b'2' => Some(Piece::RedSensei),
+                    b'3' => Some(Piece::BlueSensei),
+                    _ => return Err(LoadGameError::BoardParse),
+                }
+            }
+            squares
+        };
+
+        let game_board = Board::new();
+        Ok(game_board)
+    }
+}
+
+enum LoadGameError {
+    BoardParse,
+    CardsParse,
+    MoveHistoryParse,
+}
+
+impl std::fmt::Display for LoadGameError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::BoardParse => write!(f, "board state was expected but failed to parse"),
+            Self::CardsParse => write!(f, "failed to parse cards"),
+            Self::MoveHistoryParse => write!(f, "failed to parse move history"),
         }
     }
 }

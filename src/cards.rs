@@ -53,13 +53,13 @@ pub const ALL_CARDS: [Card; 16] = [
     RABBIT, ROOSTER, TIGER,
 ];
 pub const ALL_CARDS_IDENT: [u8; 16] = [
-    b'B',b'C',b'Q',b'K',b'D',b'E',b'L',b'F',b'G',b'H',b'M',b'X',b'O',b'R',b'U',b'T'
+    b'B', b'C', b'Q', b'K', b'D', b'E', b'L', b'F', b'G', b'H', b'M', b'X', b'O', b'R', b'U', b'T',
 ];
 
 pub fn index_of_card(card: &Card) -> usize {
     for (i, other_card) in ALL_CARDS.iter().enumerate() {
         if card == other_card {
-            return i
+            return i;
         }
     }
     panic!("attempted to get index of nonexistant card!")
