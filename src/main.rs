@@ -17,9 +17,7 @@ const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
 const FRAMERATE: u64 = 60;
 const AI_OPPONENT: bool = true;
-const AI_VERSUS_AI: bool = false;
-const RED_AI_MAX_DEPTH: u32 = 4;
-const BLUE_AI_MAX_DEPTH: u32 = 5;
+const AI_MAX_DEPTH: u32 = 4;
 
 fn main() {
     // Set up SDL, window, most graphics
@@ -74,9 +72,7 @@ fn main() {
     // Animator for sliding pieces
     let mut move_animator: Option<MoveAnimator> = None;
 
-    // AI's
-    let red_ai = ai::MinMax::new(RED_AI_MAX_DEPTH);
-    let blue_ai = ai::MinMax::new(BLUE_AI_MAX_DEPTH);
+    let blue_ai = ai::MinMax::new(AI_MAX_DEPTH);
 
     // Inputs
     let mut inputs = Inputs {
@@ -103,41 +99,6 @@ fn main() {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'main,
-                Event::KeyDown {
-                    keycode: Some(Keycode::S),
-                    ..
-                } => {
-                    println!("{}", game_board.save_game(true));
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::L),
-                    ..
-                } => {
-                    // println!("{:?}",
-                    // Board::load_game(String::from(
-                    //     "# Example spec, specifies an initial board position and
-                    //     # three moves of game history
-
-                    //     # Non-standard start, the senseis begin one step forward
-                    //     # Board positions in comments for reference
-                    //     11.11  #  abcde
-                    //     ..3..  #  fghij
-                    //     .....  #  klmno
-                    //     ..2..  #  pqrst
-                    //     00.00  #  uvwxy
-
-                    //     # The five cards in use
-                    //     BXLUT
-
-                    //     # Moves
-                    //     Brs # red sensei moves right using boar
-                    //     Lhl # blue sensei moves down and left using elephant
-                    //     Tvl # red disciple captures blue sensei using tiger, game over"
-                    // ))
-                    // .unwrap()
-                    // .squares();
-                    // );
-                }
                 Event::MouseButtonDown {
                     mouse_btn: MouseButton::Left,
                     x,
@@ -176,7 +137,7 @@ fn main() {
                 card_graphics.swap_cards();
                 play_tap();
             }
-        } else if !AI_VERSUS_AI && (!AI_OPPONENT || game_board.red_to_move()) {
+        } else if !AI_OPPONENT || game_board.red_to_move() {
             fn return_piece(
                 graphic_board: &GraphicBoard,
                 piece_graphics: &mut PieceGraphicsManager,
@@ -247,13 +208,9 @@ fn main() {
                 piece.x = inputs.mouse_pos.0 - (piece.width / 2) as i32;
                 piece.y = inputs.mouse_pos.1 - (piece.height / 2) as i32;
             }
-        } else if AI_OPPONENT || AI_VERSUS_AI {
+        } else if AI_OPPONENT {
             // AI Takes turn
-            let ai_move = if game_board.red_to_move() {
-                red_ai.suggest_move(game_board.clone(), true)
-            } else {
-                blue_ai.suggest_move(game_board.clone(), false)
-            };
+            let ai_move = blue_ai.suggest_move(game_board.clone(), false);
 
             game_board.make_move(ai_move.used_card, ai_move.start_pos, ai_move.end_pos);
             card_graphics.select_card(ai_move.used_card); // Select card now, swap after animation finishes
