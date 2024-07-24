@@ -1,6 +1,6 @@
 // use std::hash::{Hash, Hasher};
 
-use std::error::Error;
+use std::{error::Error, fmt::Write};
 
 use crate::cards::{self, Card};
 
@@ -68,6 +68,7 @@ pub struct Board {
     winner: Option<bool>, // true if red, false if blue, None if neither
     move_history: Vec<GameMove>,
     default_start: bool,
+    initial_cards: [Card; 5]
 }
 impl Board {
     pub fn new() -> Self {
@@ -82,6 +83,7 @@ impl Board {
             winner: None,
             move_history: Vec::with_capacity(20),
             default_start: true,
+            initial_cards: rand_cards
         }
     }
     #[rustfmt::skip]
@@ -282,18 +284,28 @@ impl Board {
     }
 
     /// Saves board history to a string in .oni format
-    pub fn save_game(&self) -> String {
-        let mut move_history_bytes = Vec::with_capacity(3 * self.move_history.len());
-        for game_move in &self.move_history {
-            move_history_bytes.extend(game_move.as_encoded_bytes())
-        }
-        let move_history_str = String::from_utf8(move_history_bytes).unwrap();
-
-        if self.default_start {
-            move_history_str
-        } else {
+    pub fn save_game(&self, with_whitespace: bool) -> String {
+        let mut save_game_str = String::new();
+        
+        // Save initial board position
+        if !self.default_start {
             todo!("save game history from non-default start")
         }
+        if with_whitespace { save_game_str.push_str("\n\n") }
+
+        // Save the cards used
+        for card in self.initial_cards {
+            save_game_str.push(cards::card_identifier(&card) as char)
+        }
+        if with_whitespace { save_game_str.push_str("\n\n") }
+
+        // Save the move history
+        for game_move in &self.move_history {
+            save_game_str.push_str(&String::from_utf8_lossy(&game_move.as_encoded_bytes()));
+            if with_whitespace { save_game_str.push(' ') }
+        }
+
+        save_game_str
     }
 
     /// Loads a saved game from .oni format
@@ -301,7 +313,7 @@ impl Board {
         // Ignore comment lines, whitespace and characters not of relevance
         let filter_comments =
             String::from_iter(text.lines().map(|line| match line.split_once('#') {
-                Some((pre, post)) => pre,
+                Some((pre, _)) => pre,
                 None => line,
             }));
 
@@ -384,6 +396,7 @@ impl Board {
             winner: None,
             move_history: Vec::with_capacity(20),
             default_start,
+            initial_cards: [red_cards.0, red_cards.1, blue_cards.0, blue_cards.1, transfer_card]
         };
 
         // Load zero or more moves to move history, and execute those moves on the board
