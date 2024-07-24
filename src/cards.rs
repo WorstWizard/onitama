@@ -64,6 +64,14 @@ pub fn index_of_card(card: &Card) -> usize {
     }
     panic!("attempted to get index of nonexistant card!")
 }
+pub fn index_of_card_by_identifier(ident: u8) -> usize {
+    for (i, other_ident) in ALL_CARDS_IDENT.iter().enumerate() {
+        if ident == *other_ident {
+            return i;
+        }
+    }
+    panic!("attempted to get index of nonexistant card identifier!")
+}
 /// Returns an identifier for the card to be saved/loaded to a file
 pub fn card_identifier(card: &Card) -> u8 {
     ALL_CARDS_IDENT[index_of_card(card)]

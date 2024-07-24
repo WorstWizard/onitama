@@ -113,26 +113,30 @@ fn main() {
                     keycode: Some(Keycode::L),
                     ..
                 } => {
-                    //                     Board::load_game(String::from(
-                    //                         "# Example spec, specifies an initial board position and
-                    // # three moves of game history
+                    // println!("{:?}",
+                    Board::load_game(String::from(
+                        "# Example spec, specifies an initial board position and
+                        # three moves of game history
 
-                    // # Non-standard start, the senseis begin one step forward
-                    // # Board positions in comments for reference
-                    // 11.11  #  abcde
-                    // ..3..  #  fghij
-                    // .....  #  klmno
-                    // ..2..  #  pqrst
-                    // 00.00  #  uvwxy
+                        # Non-standard start, the senseis begin one step forward
+                        # Board positions in comments for reference
+                        11.11  #  abcde
+                        ..3..  #  fghij
+                        .....  #  klmno
+                        ..2..  #  pqrst
+                        00.00  #  uvwxy
 
-                    // # The five cards in use
-                    // BXLUT
+                        # The five cards in use
+                        BXLUT
 
-                    // # Moves
-                    // Brs # red sensei moves right using boar
-                    // Ehl # blue sensei moves down and left using elephant
-                    // Tvl # red disciple captures blue sensei using tiger, game over",
-                    //                     ));
+                        # Moves
+                        Brs # red sensei moves right using boar
+                        Lhl # blue sensei moves down and left using elephant
+                        Tvl # red disciple captures blue sensei using tiger, game over"
+                    ))
+                    .unwrap()
+                    .squares();
+                    // );
                 }
                 Event::MouseButtonDown {
                     mouse_btn: MouseButton::Left,

@@ -310,7 +310,7 @@ impl Board {
         }
         let filtered_bytes: Vec<u8> = filter_comments
             .bytes()
-            .filter(|byte| is_board_spec_byte(*byte))
+            .filter(|byte| is_board_spec_byte(*byte) || byte.is_ascii_alphabetic())
             .collect();
 
         // Only the cards definition is strictly required for loading,
@@ -320,14 +320,16 @@ impl Board {
         }
 
         // If the first non-filtered character is a board spec character, try to load a board
-        let squares = if !is_board_spec_byte(filtered_bytes[0]) {
-            Self::default_squares()
+        let (squares, default_start) = if !is_board_spec_byte(filtered_bytes[0]) {
+            (Self::default_squares(), true)
         } else {
             // Load a non-default initial board state
-            let board_spec_bytes = filtered_bytes.get(0..25).ok_or(LoadGameError::BoardParse)?;
+            let board_spec_bytes = filtered_bytes
+                .get(0..25)
+                .ok_or(LoadGameError::BoardParse)?;
             if board_spec_bytes
                 .iter()
-                .find(|&byte| is_board_spec_byte(*byte))
+                .find(|&byte| !is_board_spec_byte(*byte))
                 .is_some()
             {
                 return Err(LoadGameError::BoardParse);
@@ -343,18 +345,71 @@ impl Board {
                     _ => return Err(LoadGameError::BoardParse),
                 }
             }
-            squares
+            (squares, false)
         };
 
-        let game_board = Board::new();
+        fn byte_to_card(byte: u8) -> Card {
+            cards::ALL_CARDS[cards::index_of_card_by_identifier(byte.to_ascii_uppercase())]
+        }
+
+        // Load cards
+        let remaining_bytes = if default_start {
+            &filtered_bytes[0..]
+        } else {
+            &filtered_bytes[25..]
+        };
+        
+        let (red_cards, blue_cards, transfer_card) = match remaining_bytes.get(0..5) {
+            Some(bytes) => (
+                (
+                    byte_to_card(bytes[0]),
+                    byte_to_card(bytes[1]),
+                ),
+                (
+                    byte_to_card(bytes[2]),
+                    byte_to_card(bytes[3]),
+                ),
+                byte_to_card(bytes[4]),
+            ),
+            None => return Err(LoadGameError::CardsParse),
+        };
+
+        // Make game board
+        let mut game_board = Board {
+            squares,
+            red_to_move: true,
+            red_cards,
+            blue_cards,
+            transfer_card,
+            winner: None,
+            move_history: Vec::with_capacity(20),
+            default_start,
+        };
+
+        // Load zero or more moves to move history, and execute those moves on the board
+        let remaining_bytes = &remaining_bytes[5..];
+        if remaining_bytes.len() % 3 != 0 {
+            return Err(LoadGameError::MoveHistoryParse);
+        }
+        for chunk in remaining_bytes.chunks(3) {
+            let card = byte_to_card(chunk[0]);
+            let start_pos = Pos::from_index((chunk[1].to_ascii_uppercase() - b'A') as usize);
+            let end_pos = Pos::from_index((chunk[2].to_ascii_uppercase() - b'A') as usize);
+            if game_board.make_move(card, start_pos, end_pos).is_none() {
+                return Err(LoadGameError::IllegalMove);
+            }
+        }
+
         Ok(game_board)
     }
 }
 
-enum LoadGameError {
+#[derive(Debug)]
+pub enum LoadGameError {
     BoardParse,
     CardsParse,
     MoveHistoryParse,
+    IllegalMove,
 }
 
 impl std::fmt::Display for LoadGameError {
@@ -363,6 +418,7 @@ impl std::fmt::Display for LoadGameError {
             Self::BoardParse => write!(f, "board state was expected but failed to parse"),
             Self::CardsParse => write!(f, "failed to parse cards"),
             Self::MoveHistoryParse => write!(f, "failed to parse move history"),
+            Self::IllegalMove => write!(f, "illegal move in move history"),
         }
     }
 }

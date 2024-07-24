@@ -79,10 +79,10 @@ BXLUT
 
 # Moves
 Brs # red sensei moves right using boar
-Ehl # blue sensei moves down and left using elephant
+Lhl # blue sensei moves down and left using elephant
 Tvl # red disciple captures blue sensei using tiger, game over
 ```
 Without whitespace and comments
 ```
-11.11..3.........2..00.00BXLUTBrsEhlTvl
+11.11..3.........2..00.00BXLUTBrsLhlTvl
 ```
