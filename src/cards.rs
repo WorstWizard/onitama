@@ -5,7 +5,7 @@ use tinyrand_std::ClockSeed;
 
 pub const LARGEST_CARD: usize = 4;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Card {
     offsets: &'static [Pos],
     rev_offsets: &'static [Pos],
@@ -17,6 +17,16 @@ impl Card {
     }
     pub fn rev_offsets(&self) -> &[Pos] {
         self.rev_offsets
+    }
+}
+impl std::fmt::Display for Card {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+impl std::fmt::Debug for Card {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 macro_rules! new_card {

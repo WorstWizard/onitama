@@ -1,7 +1,6 @@
-// use std::hash::{Hash, Hasher};
 use crate::cards::{self, Card};
 
-#[derive(Clone, Copy, Debug, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Piece {
     RedDisciple = 0b00,
     RedSensei = 0b01,
@@ -14,7 +13,7 @@ impl Piece {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Pos(pub i8, pub i8);
 impl Pos {
     pub fn to_index(self) -> usize {
@@ -32,7 +31,7 @@ impl Pos {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameMove {
     pub start_pos: Pos,
     pub end_pos: Pos,
@@ -55,7 +54,7 @@ impl GameMove {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Board {
     squares: [Option<Piece>; 25],
     red_to_move: bool,
@@ -67,7 +66,6 @@ pub struct Board {
     default_start: bool,
     initial_cards: [Card; 5]
 }
-
 impl Default for Board {
     /// Default board setup with no moves taken and using the first five cards of `cards::ALL_CARDS`,
     /// which should be Board, Cobra, Crab, Crane and Dragon
