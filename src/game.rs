@@ -69,7 +69,26 @@ pub struct Board {
 }
 
 impl Default for Board {
+    /// Default board setup with no moves taken and using the first five cards of `cards::ALL_CARDS`,
+    /// which should be Board, Cobra, Crab, Crane and Dragon
     fn default() -> Self {
+        let squares = Self::default_squares();
+        let initial_cards: [Card; 5] = cards::ALL_CARDS[0..5].try_into().unwrap();
+        Board {
+            red_to_move: true,
+            squares,
+            red_cards: (initial_cards[0], initial_cards[1]),
+            blue_cards: (initial_cards[2], initial_cards[3]),
+            transfer_card: initial_cards[4],
+            winner: None,
+            move_history: Vec::with_capacity(20),
+            default_start: true,
+            initial_cards
+        }
+    }
+}
+impl Board {
+    pub fn random_cards() -> Self {
         let squares = Self::default_squares();
         let rand_cards = cards::random_cards();
         Board {
@@ -84,8 +103,6 @@ impl Default for Board {
             initial_cards: rand_cards
         }
     }
-}
-impl Board {
     #[rustfmt::skip]
     fn default_squares() -> [Option<Piece>; 25] {
         use Piece::*;

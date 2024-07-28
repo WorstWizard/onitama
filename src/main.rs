@@ -50,7 +50,7 @@ fn main() {
     let piece_textures = PieceTextures::init(&tex_creator);
 
     // Make game board, set up graphics
-    let mut game_board = Board::default();
+    let mut game_board = Board::random_cards();
     let graphic_board = GraphicBoard::new(&canvas);
     let mut piece_graphics =
         PieceGraphicsManager::new(&graphic_board, &game_board, &piece_textures);
