@@ -64,7 +64,7 @@ pub struct Board {
     winner: Option<bool>, // true if red, false if blue, None if neither
     move_history: Vec<GameMove>,
     default_start: bool,
-    initial_cards: [Card; 5]
+    initial_cards: [Card; 5],
 }
 impl Default for Board {
     /// Default board setup with no moves taken and using the first five cards of `cards::ALL_CARDS`,
@@ -81,7 +81,7 @@ impl Default for Board {
             winner: None,
             move_history: Vec::with_capacity(20),
             default_start: true,
-            initial_cards
+            initial_cards,
         }
     }
 }
@@ -98,7 +98,7 @@ impl Board {
             winner: None,
             move_history: Vec::with_capacity(20),
             default_start: true,
-            initial_cards: rand_cards
+            initial_cards: rand_cards,
         }
     }
     #[rustfmt::skip]
@@ -301,23 +301,29 @@ impl Board {
     /// Saves board history to a string in .oni format
     pub fn save_game(&self, with_whitespace: bool) -> String {
         let mut save_game_str = String::new();
-        
+
         // Save initial board position
         if !self.default_start {
             todo!("save game history from non-default start")
         }
-        if with_whitespace { save_game_str.push_str("\n\n") }
+        if with_whitespace {
+            save_game_str.push_str("\n\n")
+        }
 
         // Save the cards used
         for card in self.initial_cards {
             save_game_str.push(cards::card_identifier(&card) as char)
         }
-        if with_whitespace { save_game_str.push_str("\n\n") }
+        if with_whitespace {
+            save_game_str.push_str("\n\n")
+        }
 
         // Save the move history
         for game_move in &self.move_history {
             save_game_str.push_str(&String::from_utf8_lossy(&game_move.as_encoded_bytes()));
-            if with_whitespace { save_game_str.push(' ') }
+            if with_whitespace {
+                save_game_str.push(' ')
+            }
         }
 
         save_game_str
@@ -351,9 +357,7 @@ impl Board {
             (Self::default_squares(), true)
         } else {
             // Load a non-default initial board state
-            let board_spec_bytes = filtered_bytes
-                .get(0..25)
-                .ok_or(LoadGameError::BoardParse)?;
+            let board_spec_bytes = filtered_bytes.get(0..25).ok_or(LoadGameError::BoardParse)?;
             if board_spec_bytes
                 .iter()
                 .any(|&byte| !is_board_spec_byte(byte))
@@ -384,17 +388,11 @@ impl Board {
         } else {
             &filtered_bytes[25..]
         };
-        
+
         let (red_cards, blue_cards, transfer_card) = match remaining_bytes.get(0..5) {
             Some(bytes) => (
-                (
-                    byte_to_card(bytes[0]),
-                    byte_to_card(bytes[1]),
-                ),
-                (
-                    byte_to_card(bytes[2]),
-                    byte_to_card(bytes[3]),
-                ),
+                (byte_to_card(bytes[0]), byte_to_card(bytes[1])),
+                (byte_to_card(bytes[2]), byte_to_card(bytes[3])),
                 byte_to_card(bytes[4]),
             ),
             None => return Err(LoadGameError::CardsParse),
@@ -410,7 +408,13 @@ impl Board {
             winner: None,
             move_history: Vec::with_capacity(20),
             default_start,
-            initial_cards: [red_cards.0, red_cards.1, blue_cards.0, blue_cards.1, transfer_card]
+            initial_cards: [
+                red_cards.0,
+                red_cards.1,
+                blue_cards.0,
+                blue_cards.1,
+                transfer_card,
+            ],
         };
 
         // Load zero or more moves to move history, and execute those moves on the board
@@ -428,6 +432,20 @@ impl Board {
         }
 
         Ok(game_board)
+    }
+    /// Returns whether two boards represent the same board state, ignoring permutations of cards,
+    /// move history, and so forth. Essentially a looser equals operator, should be used instead of '=='
+    /// in most practical cases
+    pub fn is_same_board(&self, other: &Board) -> bool {
+        self.squares == other.squares
+            && self.red_to_move == other.red_to_move
+            && self.transfer_card == other.transfer_card
+            && ((self.red_cards.0 == other.red_cards.0 && self.red_cards.1 == other.red_cards.1)
+                || (self.red_cards.0 == other.red_cards.1 && self.red_cards.1 == other.red_cards.0))
+            && ((self.blue_cards.0 == other.blue_cards.0
+                && self.blue_cards.1 == other.blue_cards.1)
+                || (self.blue_cards.0 == other.blue_cards.1
+                    && self.blue_cards.1 == other.blue_cards.0))
     }
 }
 
