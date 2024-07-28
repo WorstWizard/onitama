@@ -326,7 +326,7 @@ impl Board {
     }
 
     /// Loads a saved game from .oni format
-    pub fn load_game(text: String) -> Result<Self, LoadGameError> {
+    pub fn load_game(text: &str) -> Result<Self, LoadGameError> {
         // Ignore comment lines, whitespace and characters not of relevance
         let filter_comments =
             String::from_iter(text.lines().map(|line| match line.split_once('#') {
