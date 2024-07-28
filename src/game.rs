@@ -186,6 +186,7 @@ impl Board {
         self.move_history.push(game_move);
     }
 
+    /// `None` if no winner, `Some(true)` if red has won, `Some(false)` if Blue has won
     pub fn winner(&self) -> Option<bool> {
         self.winner
     }
