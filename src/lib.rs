@@ -1,4 +1,4 @@
-pub mod game;
-pub mod cards;
-pub mod graphics;
 pub mod ai;
+pub mod cards;
+pub mod game;
+pub mod graphics;

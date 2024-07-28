@@ -4,9 +4,9 @@ use sdl2::mixer::{self, LoaderRWops};
 use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
 
+use onitama::ai::AIOpponent;
 use onitama::game::*;
 use onitama::graphics::*;
-use onitama::ai::AIOpponent;
 use sdl2::rect::Rect;
 
 const WIDTH: u32 = 1200;
