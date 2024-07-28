@@ -1,7 +1,4 @@
 // use std::hash::{Hash, Hasher};
-
-use std::{error::Error, fmt::Write};
-
 use crate::cards::{self, Card};
 
 #[derive(Clone, Copy, Debug, Hash)]
@@ -70,8 +67,9 @@ pub struct Board {
     default_start: bool,
     initial_cards: [Card; 5]
 }
-impl Board {
-    pub fn new() -> Self {
+
+impl Default for Board {
+    fn default() -> Self {
         let squares = Self::default_squares();
         let rand_cards = cards::random_cards();
         Board {
@@ -86,6 +84,8 @@ impl Board {
             initial_cards: rand_cards
         }
     }
+}
+impl Board {
     #[rustfmt::skip]
     fn default_squares() -> [Option<Piece>; 25] {
         use Piece::*;
@@ -341,8 +341,7 @@ impl Board {
                 .ok_or(LoadGameError::BoardParse)?;
             if board_spec_bytes
                 .iter()
-                .find(|&byte| !is_board_spec_byte(*byte))
-                .is_some()
+                .any(|&byte| !is_board_spec_byte(byte))
             {
                 return Err(LoadGameError::BoardParse);
             }

@@ -1,17 +1,13 @@
-use ai::AIOpponent;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mixer::{self, LoaderRWops};
 use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
 
-mod game;
-use game::*;
-mod graphics;
-use graphics::*;
+use onitama::game::*;
+use onitama::graphics::*;
+use onitama::ai::AIOpponent;
 use sdl2::rect::Rect;
-mod ai;
-mod cards;
 
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
@@ -54,7 +50,7 @@ fn main() {
     let piece_textures = PieceTextures::init(&tex_creator);
 
     // Make game board, set up graphics
-    let mut game_board = Board::new();
+    let mut game_board = Board::default();
     let graphic_board = GraphicBoard::new(&canvas);
     let mut piece_graphics =
         PieceGraphicsManager::new(&graphic_board, &game_board, &piece_textures);
@@ -72,7 +68,8 @@ fn main() {
     // Animator for sliding pieces
     let mut move_animator: Option<MoveAnimator> = None;
 
-    let blue_ai = ai::MinMax::new(AI_MAX_DEPTH);
+    // AI
+    let blue_ai = onitama::ai::MinMax::new(AI_MAX_DEPTH);
 
     // Inputs
     let mut inputs = Inputs {
