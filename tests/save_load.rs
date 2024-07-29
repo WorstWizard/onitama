@@ -13,6 +13,8 @@ fn load_default() {
     assert_eq!(default_board, loaded_board);
 }
 #[test]
+
+#[rustfmt::skip]
 fn load_example() {
     use onitama::game::Piece::*;
     let loaded_board = Board::load_game(
@@ -41,31 +43,11 @@ fn load_example() {
     assert_eq!(
         *loaded_board.squares(),
         [
-            Some(BlueDisciple),
-            Some(BlueDisciple),
-            None,
-            Some(BlueDisciple),
-            Some(BlueDisciple),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            Some(RedDisciple),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            Some(RedSensei),
-            None,
-            Some(RedDisciple),
-            None,
-            None,
-            Some(RedDisciple),
-            Some(RedDisciple),
+            Some(BlueDisciple), Some(BlueDisciple), None, Some(BlueDisciple), Some(BlueDisciple),
+            None,               None,               None, None,               None,
+            None,               Some(RedDisciple),  None, None,               None,
+            None,               None,               None, Some(RedSensei),    None,
+            Some(RedDisciple),  None,               None, Some(RedDisciple),  Some(RedDisciple),
         ]
     );
     assert!(loaded_board.cards().contains(&cards::BOAR));
