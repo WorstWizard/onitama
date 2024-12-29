@@ -116,7 +116,7 @@ impl Board {
     pub fn make_move(&mut self, card: Card, start_pos: Pos, end_pos: Pos) -> Option<GameMove> {
         // Is a piece chosen, and does it belong to the current player
         let moved_piece = self.squares[start_pos.to_index()];
-        if !moved_piece.is_some_and(|piece| piece.is_red() == self.red_to_move) {
+        if moved_piece.is_none_or(|piece| piece.is_red() != self.red_to_move) {
             return None;
         }
         // Is a piece captured, and does it belong to the current player
