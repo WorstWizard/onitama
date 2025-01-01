@@ -16,6 +16,8 @@ const AI_OPPONENT: bool = true;
 const AI_MAX_DEPTH: u32 = 4;
 
 fn main() {
+    env_logger::init();
+
     // Set up SDL, window, most graphics
     let sdl_ctx = sdl2::init().unwrap();
     let video_subsystem = sdl_ctx.video().unwrap();
