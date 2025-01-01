@@ -5,6 +5,7 @@ edition = "2021"
 default-run = "game"
 
 [dependencies]
+egui = "0.30.0"
 sdl2 = { version = "0.37.0", features = ["image", "mixer"] }
 tinyrand = "0.5.0"
 tinyrand-std = "0.5.0"
