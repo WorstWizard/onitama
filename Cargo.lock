@@ -1441,6 +1441,7 @@ checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 name = "onitama"
 version = "0.9.0"
 dependencies = [
+ "bytemuck",
  "egui",
  "egui-wgpu",
  "env_logger",

@@ -1,18 +1,163 @@
 use std::sync::Arc;
 
-use onitama::ai::AIOpponent;
-use onitama::game::*;
-use onitama::graphics::*;
+use wgpu::util::DeviceExt;
+use wgpu::BufferUsages;
+// use onitama::ai::AIOpponent;
+// use onitama::game::*;
+// use onitama::graphics::*;
+// use wgpu::Color;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
+use winit::event::ElementState;
+use winit::event::KeyEvent;
 use winit::event_loop::EventLoop;
+use winit::keyboard::KeyCode;
+use winit::keyboard::PhysicalKey;
 use winit::window::Window;
+
+use wgpu::Color;
 
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
 const FRAMERATE: u64 = 60;
 const AI_OPPONENT: bool = true;
 const AI_MAX_DEPTH: u32 = 4;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct Vertex {
+    pos: [f32; 2],
+    color: [f32; 3],
+}
+
+struct FilledQuad {
+    origin: [f32; 2],
+    width: f32,
+    height: f32,
+    color: [f32; 3],
+}
+impl FilledQuad {
+    fn new(origin: [f32; 2], width: f32, height: f32, color: [f32; 3]) -> Self {
+        FilledQuad { origin, width, height, color }
+    }
+    fn to_vertices(&self) -> [Vertex; 6] {
+        [
+            Vertex {
+                pos: [self.origin[0], self.origin[1]],
+                color: self.color,
+            },
+            Vertex {
+                pos: [self.origin[0] + self.width, self.origin[1]],
+                color: self.color,
+            },
+            Vertex {
+                pos: [self.origin[0], self.origin[1] + self.height],
+                color: [1.0, 0.5, 0.5],
+            },
+            Vertex {
+                pos: [self.origin[0], self.origin[1] + self.height],
+                color: self.color,
+            },
+            Vertex {
+                pos: [self.origin[0] + self.width, self.origin[1]],
+                color: self.color,
+            },
+            Vertex {
+                pos: [self.origin[0] + self.width, self.origin[1] + self.height],
+                color: self.color,
+            },
+        ]
+    }
+}
+
+fn render_board(
+    device: &wgpu::Device,
+    render_pass: &mut wgpu::RenderPass,
+    out_format: wgpu::TextureFormat,
+) {
+    let width_px = 100.0;
+    let height_px = 100.0;
+    let separation_px = 10.0;
+    let color = [1.0, 1.0, 1.0];
+    let vertices: Vec<Vertex> = (0..5)
+        .flat_map(|i| {
+            (0..5).flat_map(move |j| {
+                let origin = [
+                    j as f32 * (width_px + separation_px) / WIDTH as f32 - 1.0,
+                    i as f32 * (height_px + separation_px) / HEIGHT as f32 - 1.0,
+                ];
+                FilledQuad::new(
+                    origin,
+                    width_px/WIDTH as f32,
+                    height_px/HEIGHT as f32,
+                    color
+                ).to_vertices()
+            })
+        })
+        .collect();
+
+    let shader = device.create_shader_module(wgpu::include_wgsl!("filled_color.wgsl"));
+    let tmp_vert_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("board_vert_buffer"),
+        contents: bytemuck::cast_slice(&vertices),
+        usage: BufferUsages::VERTEX,
+    });
+    // let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: None, bind_group_layouts: &[], push_constant_ranges: &[] });
+    let vert_buffer_layout = wgpu::VertexBufferLayout {
+        array_stride: std::mem::size_of::<Vertex>() as u64,
+        step_mode: wgpu::VertexStepMode::Vertex,
+        attributes: &[
+            wgpu::VertexAttribute {
+                format: wgpu::VertexFormat::Float32x2,
+                offset: 0,
+                shader_location: 0,
+            },
+            wgpu::VertexAttribute {
+                format: wgpu::VertexFormat::Float32x3,
+                offset: std::mem::offset_of!(Vertex, color) as u64,
+                shader_location: 1,
+            },
+        ],
+    };
+    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("board_pipeline"),
+        layout: None,
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: Some("vs_main"),
+            buffers: &[vert_buffer_layout],
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+        },
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: None,
+            polygon_mode: wgpu::PolygonMode::Fill,
+            ..Default::default()
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: Some("fs_main"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            targets: &[Some(wgpu::ColorTargetState {
+                blend: Some(wgpu::BlendState::REPLACE),
+                format: out_format,
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+        }),
+        multiview: None,
+        cache: None,
+    });
+    render_pass.set_vertex_buffer(0, tmp_vert_buffer.slice(..));
+    render_pass.set_pipeline(&pipeline);
+    render_pass.draw(0..vertices.len() as u32, 0..1);
+}
 
 // Based on
 // https://sotrh.github.io/learn-wgpu/
@@ -90,20 +235,24 @@ impl<'a> GFXState<'a> {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
-        encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                    store: wgpu::StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: None,
-            occlusion_query_set: None,
-            timestamp_writes: None,
-        });
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+            render_board(&self.device, &mut render_pass, self.config.format);
+        }
+
         self.queue.submit(std::iter::once(encoder.finish()));
         self.window.pre_present_notify();
         output.present();
@@ -135,20 +284,30 @@ impl<'a> ApplicationHandler for OnitamaApp<'a> {
         event: winit::event::WindowEvent,
     ) {
         match event {
-            winit::event::WindowEvent::CloseRequested => {
+            winit::event::WindowEvent::CloseRequested
+            | winit::event::WindowEvent::KeyboardInput {
+                device_id: _,
+                event:
+                    KeyEvent {
+                        state: ElementState::Pressed,
+                        physical_key: PhysicalKey::Code(KeyCode::Escape),
+                        ..
+                    },
+                is_synthetic: _,
+            } => {
                 event_loop.exit();
-            },
+            }
             winit::event::WindowEvent::RedrawRequested => {
                 match self.gfx_state.as_mut().unwrap().render() {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         log::error!("Surface lost or resized");
                         event_loop.exit();
-                    },
+                    }
                     Err(wgpu::SurfaceError::OutOfMemory) => {
                         log::error!("Out of memory");
                         event_loop.exit();
-                    },
+                    }
                     Err(wgpu::SurfaceError::Timeout) => {
                         log::warn!("Surface timeout")
                     }
