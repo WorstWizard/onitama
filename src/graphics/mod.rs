@@ -7,6 +7,7 @@ const ANIM_TIME: f32 = 0.25;
 
 use crate::cards::Card;
 use crate::game::*;
+pub mod renderer;
 
 mod colors {
     use sdl2::pixels::Color;

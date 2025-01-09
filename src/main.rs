@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+use glam::vec2;
+use glam::vec3;
+use onitama::graphics::renderer::SimpleRenderer;
 use wgpu::util::DeviceExt;
 use wgpu::BufferUsages;
 // use onitama::ai::AIOpponent;
@@ -30,15 +33,15 @@ struct Vertex {
     color: [f32; 3],
 }
 
-struct FilledQuad {
+struct ColoredQuad {
     origin: [f32; 2],
     width: f32,
     height: f32,
     color: [f32; 3],
 }
-impl FilledQuad {
+impl ColoredQuad {
     fn new(origin: [f32; 2], width: f32, height: f32, color: [f32; 3]) -> Self {
-        FilledQuad { origin, width, height, color }
+        ColoredQuad { origin, width, height, color }
     }
     fn to_vertices(&self) -> [Vertex; 6] {
         [
@@ -71,103 +74,117 @@ impl FilledQuad {
 }
 
 fn render_board(
-    device: &wgpu::Device,
+    renderer: &mut SimpleRenderer,
     render_pass: &mut wgpu::RenderPass,
-    out_format: wgpu::TextureFormat,
 ) {
     let width_px = 100.0;
     let height_px = 100.0;
     let separation_px = 10.0;
-    let color = [1.0, 1.0, 1.0];
-    let vertices: Vec<Vertex> = (0..5)
-        .flat_map(|i| {
-            (0..5).flat_map(move |j| {
-                let origin = [
-                    j as f32 * (width_px + separation_px) / WIDTH as f32 - 1.0,
-                    i as f32 * (height_px + separation_px) / HEIGHT as f32 - 1.0,
-                ];
-                FilledQuad::new(
-                    origin,
-                    width_px/WIDTH as f32,
-                    height_px/HEIGHT as f32,
-                    color
-                ).to_vertices()
-            })
-        })
-        .collect();
+    let width = width_px/WIDTH as f32;
+    let height = height_px/HEIGHT as f32;
+    let color = vec3(1.0, 0.3, 0.3);
+    let separation = vec2(separation_px / WIDTH as f32, separation_px / HEIGHT as f32);
+    // let vertices: Vec<Vertex> = (0..5)
+    //     .flat_map(|i| {
+    //         (0..5).flat_map(move |j| {
+    //             let origin = [
+    //                 j as f32 * (width_px + separation_px) / WIDTH as f32 - 1.0,
+    //                 i as f32 * (height_px + separation_px) / HEIGHT as f32 - 1.0,
+    //             ];
+    //             ColoredQuad::new(
+    //                 origin,
+    //                 width_px/WIDTH as f32,
+    //                 height_px/HEIGHT as f32,
+    //                 color
+    //             ).to_vertices()
+    //         })
+    //     })
+    //     .collect();
 
-    let shader = device.create_shader_module(wgpu::include_wgsl!("filled_color.wgsl"));
-    let tmp_vert_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("board_vert_buffer"),
-        contents: bytemuck::cast_slice(&vertices),
-        usage: BufferUsages::VERTEX,
-    });
-    // let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: None, bind_group_layouts: &[], push_constant_ranges: &[] });
-    let vert_buffer_layout = wgpu::VertexBufferLayout {
-        array_stride: std::mem::size_of::<Vertex>() as u64,
-        step_mode: wgpu::VertexStepMode::Vertex,
-        attributes: &[
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x2,
-                offset: 0,
-                shader_location: 0,
-            },
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x3,
-                offset: std::mem::offset_of!(Vertex, color) as u64,
-                shader_location: 1,
-            },
-        ],
-    };
-    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("board_pipeline"),
-        layout: None,
-        vertex: wgpu::VertexState {
-            module: &shader,
-            entry_point: Some("vs_main"),
-            buffers: &[vert_buffer_layout],
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-        },
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: None,
-            polygon_mode: wgpu::PolygonMode::Fill,
-            ..Default::default()
-        },
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: Some("fs_main"),
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-            targets: &[Some(wgpu::ColorTargetState {
-                blend: Some(wgpu::BlendState::REPLACE),
-                format: out_format,
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-        }),
-        multiview: None,
-        cache: None,
-    });
-    render_pass.set_vertex_buffer(0, tmp_vert_buffer.slice(..));
-    render_pass.set_pipeline(&pipeline);
-    render_pass.draw(0..vertices.len() as u32, 0..1);
+    for i in 0..5 {
+        for j in 0..5 {
+            let origin = vec2(
+                j as f32 * width+separation.x - 1.0,
+                i as f32 * height+separation.y - 1.0,
+            );
+            renderer.draw_filled_rect(origin, width, height, color);
+        }
+    }
+    renderer.render(render_pass);
+
+    // let shader = device.create_shader_module(wgpu::include_wgsl!("filled_color.wgsl"));
+    // let tmp_vert_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    //     label: Some("board_vert_buffer"),
+    //     contents: bytemuck::cast_slice(&vertices),
+    //     usage: BufferUsages::VERTEX,
+    // });
+    // // let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: None, bind_group_layouts: &[], push_constant_ranges: &[] });
+    // let vert_buffer_layout = wgpu::VertexBufferLayout {
+    //     array_stride: std::mem::size_of::<Vertex>() as u64,
+    //     step_mode: wgpu::VertexStepMode::Vertex,
+    //     attributes: &[
+    //         wgpu::VertexAttribute {
+    //             format: wgpu::VertexFormat::Float32x2,
+    //             offset: 0,
+    //             shader_location: 0,
+    //         },
+    //         wgpu::VertexAttribute {
+    //             format: wgpu::VertexFormat::Float32x3,
+    //             offset: std::mem::offset_of!(Vertex, color) as u64,
+    //             shader_location: 1,
+    //         },
+    //     ],
+    // };
+    // let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+    //     label: Some("board_pipeline"),
+    //     layout: None,
+    //     vertex: wgpu::VertexState {
+    //         module: &shader,
+    //         entry_point: Some("vs_main"),
+    //         buffers: &[vert_buffer_layout],
+    //         compilation_options: wgpu::PipelineCompilationOptions::default(),
+    //     },
+    //     primitive: wgpu::PrimitiveState {
+    //         topology: wgpu::PrimitiveTopology::TriangleList,
+    //         front_face: wgpu::FrontFace::Ccw,
+    //         cull_mode: None,
+    //         polygon_mode: wgpu::PolygonMode::Fill,
+    //         ..Default::default()
+    //     },
+    //     depth_stencil: None,
+    //     multisample: wgpu::MultisampleState {
+    //         count: 1,
+    //         mask: !0,
+    //         alpha_to_coverage_enabled: false,
+    //     },
+    //     fragment: Some(wgpu::FragmentState {
+    //         module: &shader,
+    //         entry_point: Some("fs_main"),
+    //         compilation_options: wgpu::PipelineCompilationOptions::default(),
+    //         targets: &[Some(wgpu::ColorTargetState {
+    //             blend: Some(wgpu::BlendState::REPLACE),
+    //             format: out_format,
+    //             write_mask: wgpu::ColorWrites::ALL,
+    //         })],
+    //     }),
+    //     multiview: None,
+    //     cache: None,
+    // });
+    // render_pass.set_vertex_buffer(0, tmp_vert_buffer.slice(..));
+    // render_pass.set_pipeline(&pipeline);
+    // render_pass.draw(0..vertices.len() as u32, 0..1);
 }
 
 // Based on
 // https://sotrh.github.io/learn-wgpu/
 struct GFXState<'a> {
     surface: wgpu::Surface<'a>,
-    device: wgpu::Device,
+    device: Arc<wgpu::Device>,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     window: Arc<Window>,
+    renderer: SimpleRenderer,
 }
 impl<'a> GFXState<'a> {
     async fn new(window: Window) -> Self {
@@ -216,13 +233,16 @@ impl<'a> GFXState<'a> {
             desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &config);
+        let device_arc = Arc::new(device);
+        let renderer = SimpleRenderer::new(device_arc.clone(), surface_format);
         Self {
             surface,
-            device,
+            device: device_arc,
             queue,
             config,
             size,
             window: window_arc,
+            renderer
         }
     }
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -250,7 +270,7 @@ impl<'a> GFXState<'a> {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
-            render_board(&self.device, &mut render_pass, self.config.format);
+            render_board(&mut self.renderer, &mut render_pass);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -261,7 +281,7 @@ impl<'a> GFXState<'a> {
 }
 
 struct OnitamaApp<'a> {
-    gfx_state: Option<GFXState<'a>>,
+    gfx_state: Option<GFXState<'a>>
 }
 impl<'a> ApplicationHandler for OnitamaApp<'a> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
