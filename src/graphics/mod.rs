@@ -1,28 +1,30 @@
-use sdl2::image::LoadTexture;
-use sdl2::rect::Rect;
-use sdl2::render::{Canvas, Texture, TextureCreator};
-use sdl2::video::{Window, WindowContext};
+// use sdl2::image::LoadTexture;
+// use sdl2::rect::Rect;
+// use sdl2::render::{Canvas, Texture, TextureCreator};
+// use sdl2::video::{Window, WindowContext};
 
 const ANIM_TIME: f32 = 0.25;
 
 use crate::cards::Card;
 use crate::game::*;
 pub mod renderer;
+pub mod board;
 
 mod colors {
-    use sdl2::pixels::Color;
-    pub const BOARD_TILE: Color = Color::WHITE;
-    pub const BOARD_BG: Color = Color::GRAY;
-    pub const BOARD_HIGHLIGHT: Color = Color::YELLOW;
-    pub const BOARD_RED_TEMPLE: Color = Color::RGB(200, 50, 50);
-    pub const BOARD_BLUE_TEMPLE: Color = Color::RGB(50, 50, 200);
-    pub const CARD_BG: Color = Color::RGB(200, 200, 170);
-    pub const CARD_TILE_BG: Color = Color::RGB(230, 230, 200);
-    pub const CARD_TILE: Color = Color::RGB(130, 130, 100);
-    pub const CARD_SELECTED: Color = Color::RGB(250, 250, 220);
-    pub const CARD_CENTER: Color = Color::RGB(80, 80, 40);
+    use super::renderer::Color;
+    pub const BOARD_TILE: Color = Color::new(1.0, 1.0, 1.0);
+    pub const BOARD_BG: Color = Color::new(0.5,0.5,0.5);
+    pub const BOARD_HIGHLIGHT: Color = Color::new(1.0, 1.0, 0.0);
+    pub const BOARD_RED_TEMPLE: Color = Color::new(200.0/255.0, 50.0/255.0, 50.0/255.0);
+    pub const BOARD_BLUE_TEMPLE: Color = Color::new(50.0/255.0, 50.0/255.0, 200.0/255.0);
+    pub const CARD_BG: Color = Color::new(200.0/255.0, 200.0/255.0, 170.0/255.0);
+    pub const CARD_TILE_BG: Color = Color::new(230.0/255.0, 230.0/255.0, 200.0/255.0);
+    pub const CARD_TILE: Color = Color::new(130.0/255.0, 130.0/255.0, 100.0/255.0);
+    pub const CARD_SELECTED: Color = Color::new(250.0/255.0, 250.0/255.0, 220.0/255.0);
+    pub const CARD_CENTER: Color = Color::new(80.0/255.0, 80.0/255.0, 40.0/255.0);
 }
 
+/*
 pub struct PieceGraphicsManager<'tex> {
     piece_graphics: [Option<GraphicPiece<'tex>>; 25],
     selected_index: Option<usize>,
@@ -136,114 +138,6 @@ impl<'a> PieceTextures<'a> {
             blue_disciple,
             blue_sensei,
         }
-    }
-}
-
-/// Draws board and provides offsets for individual tiles
-pub struct GraphicBoard {
-    x: i32,
-    y: i32,
-    board_width: u32,
-    tile_width: u32,
-    tiles: [Rect; 25],
-    tile_corners: [(i32, i32); 25],
-}
-impl GraphicBoard {
-    pub fn new(canvas: &Canvas<Window>) -> Self {
-        const LINEWIDTH: u32 = 10; //px
-
-        let screen_size = canvas.output_size().unwrap();
-        let board_width = u32::min(screen_size.0, screen_size.1);
-        let tile_width = (board_width - LINEWIDTH * 6) / 5;
-        // let x = ((screen_size.0 - board_width) / 2) as i32;
-        // let y = ((screen_size.1 - board_width) / 2) as i32;
-        let x = 0;
-        let y = 0;
-        let mut tiles = [Rect::new(0, 0, 0, 0); 25];
-        let mut tile_corners = [(0, 0); 25];
-        let mut i = 0;
-        for row in 0..5 {
-            for col in 0..5 {
-                let tile_x = (LINEWIDTH + x as u32 + col * (tile_width + LINEWIDTH)) as i32;
-                let tile_y = (LINEWIDTH + y as u32 + row * (tile_width + LINEWIDTH)) as i32;
-                tiles[i] = Rect::new(tile_x, tile_y, tile_width, tile_width);
-                tile_corners[i] = (tile_x, tile_y);
-                i += 1;
-            }
-        }
-        Self {
-            x,
-            y,
-            board_width,
-            tile_width,
-            tiles,
-            tile_corners,
-        }
-    }
-    pub fn draw_board(&self, canvas: &mut Canvas<Window>) {
-        canvas.set_draw_color(colors::BOARD_BG);
-        canvas
-            .fill_rect(Rect::new(
-                self.x,
-                self.y,
-                self.board_width,
-                self.board_width,
-            ))
-            .unwrap();
-
-        canvas.set_draw_color(colors::BOARD_TILE);
-        for (x, y) in self.tile_corners() {
-            canvas
-                .fill_rect(Rect::new(*x, *y, self.tile_width, self.tile_width))
-                .unwrap();
-        }
-        // Draw temples
-        let w = self.tile_width / 3;
-        let h = self.tile_width / 4;
-        let red_start_corner = self.tile_corners[22];
-        let blue_start_corner = self.tile_corners[2];
-        canvas.set_draw_color(colors::BOARD_RED_TEMPLE);
-        canvas
-            .fill_rect(Rect::new(
-                red_start_corner.0 + w as i32,
-                red_start_corner.1 + 3 * h as i32,
-                w,
-                h,
-            ))
-            .unwrap();
-        canvas.set_draw_color(colors::BOARD_BLUE_TEMPLE);
-        canvas
-            .fill_rect(Rect::new(
-                blue_start_corner.0 + w as i32,
-                blue_start_corner.1,
-                w,
-                h,
-            ))
-            .unwrap();
-    }
-    pub fn highlight_tiles(&self, canvas: &mut Canvas<Window>, positions: &[Pos]) {
-        for pos in positions {
-            let (x, y) = self.tile_corners[pos.to_index()];
-            canvas.set_draw_color(colors::BOARD_HIGHLIGHT);
-            canvas
-                .fill_rect(Rect::new(x, y, self.tile_width, self.tile_width))
-                .unwrap();
-        }
-    }
-    pub fn tile_corners(&self) -> &[(i32, i32); 25] {
-        &self.tile_corners
-    }
-    pub fn board_width(&self) -> u32 {
-        self.board_width
-    }
-    /// If the given position in window coords is on a tile on the board, returns that position.
-    pub fn window_to_board_pos(&self, pos: (i32, i32)) -> Option<Pos> {
-        for (i, tile) in self.tiles.iter().enumerate() {
-            if tile.contains_point(pos) {
-                return Some(Pos::from_index(i));
-            }
-        }
-        None
     }
 }
 
@@ -506,3 +400,4 @@ impl MoveAnimator {
         !self.animating
     }
 }
+**/

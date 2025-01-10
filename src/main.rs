@@ -3,8 +3,6 @@ use std::sync::Arc;
 use glam::vec2;
 use glam::vec3;
 use onitama::graphics::renderer::SimpleRenderer;
-use wgpu::util::DeviceExt;
-use wgpu::BufferUsages;
 // use onitama::ai::AIOpponent;
 // use onitama::game::*;
 // use onitama::graphics::*;
@@ -26,53 +24,6 @@ const FRAMERATE: u64 = 60;
 const AI_OPPONENT: bool = true;
 const AI_MAX_DEPTH: u32 = 4;
 
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    pos: [f32; 2],
-    color: [f32; 3],
-}
-
-struct ColoredQuad {
-    origin: [f32; 2],
-    width: f32,
-    height: f32,
-    color: [f32; 3],
-}
-impl ColoredQuad {
-    fn new(origin: [f32; 2], width: f32, height: f32, color: [f32; 3]) -> Self {
-        ColoredQuad { origin, width, height, color }
-    }
-    fn to_vertices(&self) -> [Vertex; 6] {
-        [
-            Vertex {
-                pos: [self.origin[0], self.origin[1]],
-                color: self.color,
-            },
-            Vertex {
-                pos: [self.origin[0] + self.width, self.origin[1]],
-                color: self.color,
-            },
-            Vertex {
-                pos: [self.origin[0], self.origin[1] + self.height],
-                color: [1.0, 0.5, 0.5],
-            },
-            Vertex {
-                pos: [self.origin[0], self.origin[1] + self.height],
-                color: self.color,
-            },
-            Vertex {
-                pos: [self.origin[0] + self.width, self.origin[1]],
-                color: self.color,
-            },
-            Vertex {
-                pos: [self.origin[0] + self.width, self.origin[1] + self.height],
-                color: self.color,
-            },
-        ]
-    }
-}
-
 fn render_board(
     renderer: &mut SimpleRenderer,
     render_pass: &mut wgpu::RenderPass,
@@ -85,22 +36,6 @@ fn render_board(
     let height = height_px/HEIGHT as f32;
     let color = vec3(1.0, 0.3, 0.3);
     let separation = vec2(separation_px / WIDTH as f32, separation_px / HEIGHT as f32);
-    // let vertices: Vec<Vertex> = (0..5)
-    //     .flat_map(|i| {
-    //         (0..5).flat_map(move |j| {
-    //             let origin = [
-    //                 j as f32 * (width_px + separation_px) / WIDTH as f32 - 1.0,
-    //                 i as f32 * (height_px + separation_px) / HEIGHT as f32 - 1.0,
-    //             ];
-    //             ColoredQuad::new(
-    //                 origin,
-    //                 width_px/WIDTH as f32,
-    //                 height_px/HEIGHT as f32,
-    //                 color
-    //             ).to_vertices()
-    //         })
-    //     })
-    //     .collect();
 
     for i in 0..5 {
         for j in 0..5 {
@@ -112,68 +47,6 @@ fn render_board(
         }
     }
     renderer.render(queue, render_pass);
-
-    // let shader = device.create_shader_module(wgpu::include_wgsl!("filled_color.wgsl"));
-    // let tmp_vert_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-    //     label: Some("board_vert_buffer"),
-    //     contents: bytemuck::cast_slice(&vertices),
-    //     usage: BufferUsages::VERTEX,
-    // });
-    // // let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: None, bind_group_layouts: &[], push_constant_ranges: &[] });
-    // let vert_buffer_layout = wgpu::VertexBufferLayout {
-    //     array_stride: std::mem::size_of::<Vertex>() as u64,
-    //     step_mode: wgpu::VertexStepMode::Vertex,
-    //     attributes: &[
-    //         wgpu::VertexAttribute {
-    //             format: wgpu::VertexFormat::Float32x2,
-    //             offset: 0,
-    //             shader_location: 0,
-    //         },
-    //         wgpu::VertexAttribute {
-    //             format: wgpu::VertexFormat::Float32x3,
-    //             offset: std::mem::offset_of!(Vertex, color) as u64,
-    //             shader_location: 1,
-    //         },
-    //     ],
-    // };
-    // let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-    //     label: Some("board_pipeline"),
-    //     layout: None,
-    //     vertex: wgpu::VertexState {
-    //         module: &shader,
-    //         entry_point: Some("vs_main"),
-    //         buffers: &[vert_buffer_layout],
-    //         compilation_options: wgpu::PipelineCompilationOptions::default(),
-    //     },
-    //     primitive: wgpu::PrimitiveState {
-    //         topology: wgpu::PrimitiveTopology::TriangleList,
-    //         front_face: wgpu::FrontFace::Ccw,
-    //         cull_mode: None,
-    //         polygon_mode: wgpu::PolygonMode::Fill,
-    //         ..Default::default()
-    //     },
-    //     depth_stencil: None,
-    //     multisample: wgpu::MultisampleState {
-    //         count: 1,
-    //         mask: !0,
-    //         alpha_to_coverage_enabled: false,
-    //     },
-    //     fragment: Some(wgpu::FragmentState {
-    //         module: &shader,
-    //         entry_point: Some("fs_main"),
-    //         compilation_options: wgpu::PipelineCompilationOptions::default(),
-    //         targets: &[Some(wgpu::ColorTargetState {
-    //             blend: Some(wgpu::BlendState::REPLACE),
-    //             format: out_format,
-    //             write_mask: wgpu::ColorWrites::ALL,
-    //         })],
-    //     }),
-    //     multiview: None,
-    //     cache: None,
-    // });
-    // render_pass.set_vertex_buffer(0, tmp_vert_buffer.slice(..));
-    // render_pass.set_pipeline(&pipeline);
-    // render_pass.draw(0..vertices.len() as u32, 0..1);
 }
 
 // Based on
@@ -182,7 +55,7 @@ struct GFXState<'a> {
     surface: wgpu::Surface<'a>,
     device: Arc<wgpu::Device>,
     queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
+    config: Arc<wgpu::SurfaceConfiguration>,
     size: winit::dpi::PhysicalSize<u32>,
     window: Arc<Window>,
     renderer: SimpleRenderer,
@@ -235,12 +108,13 @@ impl<'a> GFXState<'a> {
         };
         surface.configure(&device, &config);
         let device_arc = Arc::new(device);
-        let renderer = SimpleRenderer::new(device_arc.clone(), surface_format);
+        let config_arc = Arc::new(config);
+        let renderer = SimpleRenderer::new(device_arc.clone(), config_arc.clone());
         Self {
             surface,
             device: device_arc,
             queue,
-            config,
+            config: config_arc,
             size,
             window: window_arc,
             renderer
@@ -271,7 +145,15 @@ impl<'a> GFXState<'a> {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
-            render_board(&mut self.renderer, &mut render_pass, &self.queue);
+            // render_board(&mut self.renderer, &mut render_pass, &self.queue);
+            let test_gfx_board = onitama::graphics::board::GraphicBoard::new(&self.renderer);
+            test_gfx_board.draw_board(&mut self.renderer);
+            test_gfx_board.highlight_tiles(&mut self.renderer, &[
+                onitama::game::Pos::from_index(0),
+                onitama::game::Pos::from_index(1),
+                onitama::game::Pos::from_index(5),
+            ]);
+            self.renderer.render(&self.queue, &mut render_pass);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -343,8 +225,6 @@ fn main() {
     env_logger::init();
 
     let event_loop = EventLoop::new().unwrap();
-
-    // event_loop.run_app();
     let mut app = OnitamaApp { gfx_state: None };
 
     event_loop.run_app(&mut app).unwrap();
@@ -588,26 +468,26 @@ struct Inputs {
     pub mouse_pos: (i32, i32),
 }
 
-struct FPSManager {
-    timer: std::time::Instant,
-    target_duration_per_frame: std::time::Duration,
-}
-impl FPSManager {
-    pub fn new(target_framerate: u64) -> Self {
-        FPSManager {
-            timer: std::time::Instant::now(),
-            target_duration_per_frame: std::time::Duration::from_millis(1000 / target_framerate),
-        }
-    }
-    pub fn delay_frame(&mut self) {
-        let since_last_frame = self.timer.elapsed();
-        self.timer = std::time::Instant::now();
-        let sleep_time = self
-            .target_duration_per_frame
-            .saturating_sub(since_last_frame);
-        std::thread::sleep(sleep_time)
-    }
-    pub fn time_per_frame(&self) -> std::time::Duration {
-        self.target_duration_per_frame
-    }
-}
+// struct FPSManager {
+//     timer: std::time::Instant,
+//     target_duration_per_frame: std::time::Duration,
+// }
+// impl FPSManager {
+//     pub fn new(target_framerate: u64) -> Self {
+//         FPSManager {
+//             timer: std::time::Instant::now(),
+//             target_duration_per_frame: std::time::Duration::from_millis(1000 / target_framerate),
+//         }
+//     }
+//     pub fn delay_frame(&mut self) {
+//         let since_last_frame = self.timer.elapsed();
+//         self.timer = std::time::Instant::now();
+//         let sleep_time = self
+//             .target_duration_per_frame
+//             .saturating_sub(since_last_frame);
+//         std::thread::sleep(sleep_time)
+//     }
+//     pub fn time_per_frame(&self) -> std::time::Duration {
+//         self.target_duration_per_frame
+//     }
+// }
