@@ -76,6 +76,7 @@ impl ColoredQuad {
 fn render_board(
     renderer: &mut SimpleRenderer,
     render_pass: &mut wgpu::RenderPass,
+    queue: &wgpu::Queue,
 ) {
     let width_px = 100.0;
     let height_px = 100.0;
@@ -104,13 +105,13 @@ fn render_board(
     for i in 0..5 {
         for j in 0..5 {
             let origin = vec2(
-                j as f32 * width+separation.x - 1.0,
-                i as f32 * height+separation.y - 1.0,
+                j as f32 * (width+separation.x) - 1.0,
+                i as f32 * (height+separation.y) - 1.0,
             );
             renderer.draw_filled_rect(origin, width, height, color);
         }
     }
-    renderer.render(render_pass);
+    renderer.render(queue, render_pass);
 
     // let shader = device.create_shader_module(wgpu::include_wgsl!("filled_color.wgsl"));
     // let tmp_vert_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -270,7 +271,7 @@ impl<'a> GFXState<'a> {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
-            render_board(&mut self.renderer, &mut render_pass);
+            render_board(&mut self.renderer, &mut render_pass, &self.queue);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
