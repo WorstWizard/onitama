@@ -12,7 +12,6 @@ struct VertexColor {
 
 const VERT_BUFFER_SIZE: u64 = 1<<20; // 1MiB, hardcoded, should be complete overkill for this program
 pub struct SimpleRenderer {
-    device: Arc<wgpu::Device>,
     vertex_buffer: Arc<wgpu::Buffer>,
     surface_config: Arc<wgpu::SurfaceConfiguration>,
     colored_pipeline: wgpu::RenderPipeline,
@@ -20,7 +19,7 @@ pub struct SimpleRenderer {
     last_z_level: f32,
 }
 impl SimpleRenderer {
-    pub fn new(device: Arc<wgpu::Device>, surface_config: Arc<wgpu::SurfaceConfiguration>) -> Self {
+    pub fn new(device: &wgpu::Device, surface_config: Arc<wgpu::SurfaceConfiguration>) -> Self {
         let colored_shader = device.create_shader_module(wgpu::include_wgsl!("filled_color.wgsl"));
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("vertex_buffer"),
@@ -81,7 +80,6 @@ impl SimpleRenderer {
         });
 
         SimpleRenderer {
-            device,
             surface_config,
             vertex_buffer: Arc::new(vertex_buffer),
             colored_pipeline,
@@ -112,34 +110,23 @@ impl SimpleRenderer {
 
     pub fn render(&mut self, queue: &wgpu::Queue, render_pass: &mut wgpu::RenderPass) {
         // Uniform color
-        let vertex_bytes = bytemuck::cast_slice(&self.colored_vert_queue);
-        let n_verts = self.colored_vert_queue.len() as u64;
-        let n_bytes = vertex_bytes.len() as u64;
-        // let buf_size = wgpu::BufferSize::new(n_bytes);
-        // let (sender, receiver) = std::sync::mpsc::channel();
-        // self.staging_buffer.slice(..n_bytes).map_async(wgpu::MapMode::Write, move |result| {
-        //     sender.send(result).expect("failed to send msg");
-        // });
-        // self.device.poll(wgpu::Maintain::Wait); // Wait for buffer to map
-        // if receiver.recv().is_ok() {
-        //     let mut view = self.staging_buffer.slice(..n_bytes).get_mapped_range_mut();
-        //     view.clone_from_slice(vertex_bytes);
-        // } else {
-        //     panic!("failed to map staging buffer")
-        // }
-        
-        // if let Some(size) = buf_size {
-        //     let mut staging_view = queue.write_buffer_with(&self.vertex_buffer, 0, size).expect("failed to get staging buffer");
-        //     staging_view.copy_from_slice(vertex_bytes);
-        // }
+        {
+            let vertex_bytes = bytemuck::cast_slice(&self.colored_vert_queue);
+            let n_verts = self.colored_vert_queue.len() as u64;
+            let n_bytes = vertex_bytes.len() as u64;
 
-        queue.write_buffer(&self.vertex_buffer, 0, vertex_bytes);
-        self.colored_vert_queue.clear();
+            // Write vertices to vert buffer
+            queue.write_buffer(&self.vertex_buffer, 0, vertex_bytes);
 
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(0..n_bytes));
-        render_pass.set_pipeline(&self.colored_pipeline);
-        render_pass.draw(0..n_verts as u32, 0..1);
-        self.last_z_level = 1.0;
+            // Draw
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(0..n_bytes));
+            render_pass.set_pipeline(&self.colored_pipeline);
+            render_pass.draw(0..n_verts as u32, 0..1);
+
+            // Reset
+            self.colored_vert_queue.clear();
+            self.last_z_level = 1.0;
+        }
     }
 
     pub fn output_size(&self) -> (u32,u32) {

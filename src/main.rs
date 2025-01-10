@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use glam::vec2;
-use glam::vec3;
 use onitama::graphics::renderer::SimpleRenderer;
 // use onitama::ai::AIOpponent;
 // use onitama::game::*;
@@ -20,34 +18,9 @@ use wgpu::Color;
 
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
-const FRAMERATE: u64 = 60;
-const AI_OPPONENT: bool = true;
-const AI_MAX_DEPTH: u32 = 4;
-
-fn render_board(
-    renderer: &mut SimpleRenderer,
-    render_pass: &mut wgpu::RenderPass,
-    queue: &wgpu::Queue,
-) {
-    let width_px = 100.0;
-    let height_px = 100.0;
-    let separation_px = 10.0;
-    let width = width_px/WIDTH as f32;
-    let height = height_px/HEIGHT as f32;
-    let color = vec3(1.0, 0.3, 0.3);
-    let separation = vec2(separation_px / WIDTH as f32, separation_px / HEIGHT as f32);
-
-    for i in 0..5 {
-        for j in 0..5 {
-            let origin = vec2(
-                j as f32 * (width+separation.x) - 1.0,
-                i as f32 * (height+separation.y) - 1.0,
-            );
-            renderer.draw_filled_rect(origin, width, height, color);
-        }
-    }
-    renderer.render(queue, render_pass);
-}
+// const FRAMERATE: u64 = 60;
+// const AI_OPPONENT: bool = true;
+// const AI_MAX_DEPTH: u32 = 4;
 
 // Based on
 // https://sotrh.github.io/learn-wgpu/
@@ -55,8 +28,8 @@ struct GFXState<'a> {
     surface: wgpu::Surface<'a>,
     device: Arc<wgpu::Device>,
     queue: wgpu::Queue,
-    config: Arc<wgpu::SurfaceConfiguration>,
-    size: winit::dpi::PhysicalSize<u32>,
+    _config: Arc<wgpu::SurfaceConfiguration>,
+    _size: winit::dpi::PhysicalSize<u32>,
     window: Arc<Window>,
     renderer: SimpleRenderer,
 }
@@ -109,13 +82,13 @@ impl<'a> GFXState<'a> {
         surface.configure(&device, &config);
         let device_arc = Arc::new(device);
         let config_arc = Arc::new(config);
-        let renderer = SimpleRenderer::new(device_arc.clone(), config_arc.clone());
+        let renderer = SimpleRenderer::new(&device_arc, config_arc.clone());
         Self {
             surface,
             device: device_arc,
             queue,
-            config: config_arc,
-            size,
+            _config: config_arc,
+            _size: size,
             window: window_arc,
             renderer
         }
@@ -166,7 +139,7 @@ impl<'a> GFXState<'a> {
 struct OnitamaApp<'a> {
     gfx_state: Option<GFXState<'a>>
 }
-impl<'a> ApplicationHandler for OnitamaApp<'a> {
+impl ApplicationHandler for OnitamaApp<'_> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let window = event_loop
             .create_window(
@@ -183,7 +156,7 @@ impl<'a> ApplicationHandler for OnitamaApp<'a> {
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
+        _window_id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
         match event {
@@ -461,12 +434,12 @@ fn main() {
     // }
 }
 
-struct Inputs {
-    pub mouse_pressed: bool,
-    pub mouse_just_pressed: bool,
-    pub mouse_just_released: bool,
-    pub mouse_pos: (i32, i32),
-}
+// struct Inputs {
+//     pub mouse_pressed: bool,
+//     pub mouse_just_pressed: bool,
+//     pub mouse_just_released: bool,
+//     pub mouse_pos: (i32, i32),
+// }
 
 // struct FPSManager {
 //     timer: std::time::Instant,
