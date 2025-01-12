@@ -13,11 +13,18 @@ struct Rect {
 }
 impl Rect {
     fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
-        Rect { x, y, width, height }
+        Rect {
+            x,
+            y,
+            width,
+            height,
+        }
     }
     fn contains_point(&self, pos: Vec2) -> bool {
-        pos.x >= self.x && pos.x < self.x + self.width &&
-        pos.y >= self.y && pos.y < self.y + self.height
+        pos.x >= self.x
+            && pos.x < self.x + self.width
+            && pos.y >= self.y
+            && pos.y < self.y + self.height
     }
 }
 
@@ -65,8 +72,7 @@ impl GraphicBoard {
             colors::BOARD_BG,
         );
         for pos in self.tile_corners() {
-            renderer
-                .draw_filled_rect(*pos, self.tile_width, self.tile_width, colors::BOARD_TILE)
+            renderer.draw_filled_rect(*pos, self.tile_width, self.tile_width, colors::BOARD_TILE)
         }
         // Draw temples
         let w = self.tile_width / 3.0;
@@ -74,22 +80,16 @@ impl GraphicBoard {
         let red_start_corner = self.tile_corners[22];
         let blue_start_corner = self.tile_corners[2];
         renderer.draw_filled_rect(
-            vec2(
-                red_start_corner.x + w,
-                red_start_corner.y + 3.0 * h,
-            ),
+            vec2(red_start_corner.x + w, red_start_corner.y + 3.0 * h),
             w,
             h,
-            colors::BOARD_RED_TEMPLE
+            colors::BOARD_RED_TEMPLE,
         );
         renderer.draw_filled_rect(
-            vec2(
-                blue_start_corner.x + w,
-                blue_start_corner.y + 3.0 * h,
-            ),
+            vec2(blue_start_corner.x + w, blue_start_corner.y + 3.0 * h),
             w,
             h,
-            colors::BOARD_BLUE_TEMPLE
+            colors::BOARD_BLUE_TEMPLE,
         );
     }
     pub fn highlight_tiles(&self, renderer: &mut SimpleRenderer, positions: &[Pos]) {
@@ -99,7 +99,7 @@ impl GraphicBoard {
                 corner_pos,
                 self.tile_width,
                 self.tile_width,
-                colors::BOARD_HIGHLIGHT
+                colors::BOARD_HIGHLIGHT,
             );
         }
     }

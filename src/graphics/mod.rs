@@ -7,21 +7,21 @@ const ANIM_TIME: f32 = 0.25;
 
 use crate::cards::Card;
 use crate::game::*;
-pub mod renderer;
 pub mod board;
+pub mod renderer;
 
 mod colors {
     use super::renderer::Color;
     pub const BOARD_TILE: Color = Color::new(1.0, 1.0, 1.0);
-    pub const BOARD_BG: Color = Color::new(0.5,0.5,0.5);
+    pub const BOARD_BG: Color = Color::new(0.5, 0.5, 0.5);
     pub const BOARD_HIGHLIGHT: Color = Color::new(1.0, 1.0, 0.0);
-    pub const BOARD_RED_TEMPLE: Color = Color::new(200.0/255.0, 50.0/255.0, 50.0/255.0);
-    pub const BOARD_BLUE_TEMPLE: Color = Color::new(50.0/255.0, 50.0/255.0, 200.0/255.0);
-    pub const CARD_BG: Color = Color::new(200.0/255.0, 200.0/255.0, 170.0/255.0);
-    pub const CARD_TILE_BG: Color = Color::new(230.0/255.0, 230.0/255.0, 200.0/255.0);
-    pub const CARD_TILE: Color = Color::new(130.0/255.0, 130.0/255.0, 100.0/255.0);
-    pub const CARD_SELECTED: Color = Color::new(250.0/255.0, 250.0/255.0, 220.0/255.0);
-    pub const CARD_CENTER: Color = Color::new(80.0/255.0, 80.0/255.0, 40.0/255.0);
+    pub const BOARD_RED_TEMPLE: Color = Color::new(200.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0);
+    pub const BOARD_BLUE_TEMPLE: Color = Color::new(50.0 / 255.0, 50.0 / 255.0, 200.0 / 255.0);
+    pub const CARD_BG: Color = Color::new(200.0 / 255.0, 200.0 / 255.0, 170.0 / 255.0);
+    pub const CARD_TILE_BG: Color = Color::new(230.0 / 255.0, 230.0 / 255.0, 200.0 / 255.0);
+    pub const CARD_TILE: Color = Color::new(130.0 / 255.0, 130.0 / 255.0, 100.0 / 255.0);
+    pub const CARD_SELECTED: Color = Color::new(250.0 / 255.0, 250.0 / 255.0, 220.0 / 255.0);
+    pub const CARD_CENTER: Color = Color::new(80.0 / 255.0, 80.0 / 255.0, 40.0 / 255.0);
 }
 
 /*

@@ -90,7 +90,7 @@ impl<'a> GFXState<'a> {
             _config: config_arc,
             _size: size,
             window: window_arc,
-            renderer
+            renderer,
         }
     }
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -121,11 +121,14 @@ impl<'a> GFXState<'a> {
             // render_board(&mut self.renderer, &mut render_pass, &self.queue);
             let test_gfx_board = onitama::graphics::board::GraphicBoard::new(&self.renderer);
             test_gfx_board.draw_board(&mut self.renderer);
-            test_gfx_board.highlight_tiles(&mut self.renderer, &[
-                onitama::game::Pos::from_index(0),
-                onitama::game::Pos::from_index(1),
-                onitama::game::Pos::from_index(5),
-            ]);
+            test_gfx_board.highlight_tiles(
+                &mut self.renderer,
+                &[
+                    onitama::game::Pos::from_index(0),
+                    onitama::game::Pos::from_index(1),
+                    onitama::game::Pos::from_index(5),
+                ],
+            );
             self.renderer.render(&self.queue, &mut render_pass);
         }
 
@@ -137,7 +140,7 @@ impl<'a> GFXState<'a> {
 }
 
 struct OnitamaApp<'a> {
-    gfx_state: Option<GFXState<'a>>
+    gfx_state: Option<GFXState<'a>>,
 }
 impl ApplicationHandler for OnitamaApp<'_> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {

@@ -1,26 +1,32 @@
 use std::sync::Arc;
 
 use glam::{vec2, vec3, Vec2, Vec3};
+use wgpu::util::DeviceExt;
 pub type Color = Vec3;
 
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
 #[repr(C)]
-struct VertexColor {
+struct Vertex {
     pos: Vec3,
-    col: Color
+    col: Color,
+    tex: Vec2,
 }
 
-const VERT_BUFFER_SIZE: u64 = 1<<20; // 1MiB, hardcoded, should be complete overkill for this program
+const VERT_BUFFER_SIZE: u64 = 1 << 20; // 1MiB, hardcoded, should be complete overkill for this program
 pub struct SimpleRenderer {
+    device: Arc<wgpu::Device>,
     vertex_buffer: Arc<wgpu::Buffer>,
     surface_config: Arc<wgpu::SurfaceConfiguration>,
     colored_pipeline: wgpu::RenderPipeline,
-    colored_vert_queue: Vec<VertexColor>,
+    colored_vert_queue: Vec<Vertex>,
+    textured_pipeline: wgpu::RenderPipeline,
+    textured_ver_queue: Vec<Vertex>,
     last_z_level: f32,
 }
 impl SimpleRenderer {
-    pub fn new(device: &wgpu::Device, surface_config: Arc<wgpu::SurfaceConfiguration>) -> Self {
+    pub fn new(device: Arc<wgpu::Device>, surface_config: Arc<wgpu::SurfaceConfiguration>) -> Self {
         let colored_shader = device.create_shader_module(wgpu::include_wgsl!("filled_color.wgsl"));
+        let textured_shader = device.create_shader_module(wgpu::include_wgsl!("textured.wgsl"));
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("vertex_buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
@@ -28,7 +34,7 @@ impl SimpleRenderer {
             size: VERT_BUFFER_SIZE,
         });
         let vert_buffer_layout = wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<VertexColor>() as u64,
+            array_stride: std::mem::size_of::<Vertex>() as u64,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
@@ -38,8 +44,13 @@ impl SimpleRenderer {
                 },
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x3,
-                    offset: std::mem::offset_of!(VertexColor, col) as u64,
+                    offset: std::mem::offset_of!(Vertex, col) as u64,
                     shader_location: 1,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x2,
+                    offset: std::mem::offset_of!(Vertex, tex) as u64,
+                    shader_location: 2,
                 },
             ],
         };
@@ -78,32 +89,115 @@ impl SimpleRenderer {
             multiview: None,
             cache: None,
         });
+        // let textured_pipeline =
+        let texture_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("sampler"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("bind_group_layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                        count: None,
+                    },
+                ],
+            });
 
         SimpleRenderer {
+            device,
             surface_config,
             vertex_buffer: Arc::new(vertex_buffer),
             colored_pipeline,
             colored_vert_queue: vec![],
-            last_z_level: 1.0  // WebGPU NDC goes from 0 to 1, start at 1 and move primitives back to front
+            last_z_level: 1.0, // WebGPU NDC goes from 0 to 1, start at 1 and move primitives back to front
         }
+    }
+    
+    pub fn make_texture(&mut self, image: image::DynamicImage) {
+        let texture_extent = wgpu::Extent3d {
+            width: image.width(),
+            height: image.height(),
+            depth_or_array_layers: 1
+        };
+        let texture = self.device.create_texture(TextureDescriptor { label: Some("texture"), size: (), mip_level_count: (), sample_count: (), dimension: (), format: (), usage: (), view_formats: () })
     }
 
     /// Rectangle specified in window coordinates.
     /// Origin is taken as the top-left corner of the rectangle.
     pub fn draw_filled_rect(&mut self, origin: Vec2, width: f32, height: f32, color: Color) {
-        let z =  self.last_z_level - f32::EPSILON;
+        let z = self.last_z_level - f32::EPSILON;
         self.last_z_level = z;
         let pos_clip = self.window_to_clip_pos(origin);
         let (width, height) = self.window_to_clip_scale(vec2(width, height)).into();
 
         let pos = vec3(pos_clip.x, pos_clip.y, z);
         let vertices = [
-            VertexColor { pos, col: color },
-            VertexColor { pos: pos + Vec3 { x: width, y: 0.0, z: 0.0 }, col: color },
-            VertexColor { pos: pos + Vec3 { x: 0.0, y: -height, z: 0.0 }, col: color },
-            VertexColor { pos: pos + Vec3 { x: 0.0, y: -height, z: 0.0 }, col: color },
-            VertexColor { pos: pos + Vec3 { x: width, y: 0.0, z: 0.0 }, col: color },
-            VertexColor { pos: pos + Vec3 { x: width, y: -height, z: 0.0 }, col: color },
+            Vertex { pos, col: color },
+            Vertex {
+                pos: pos
+                    + Vec3 {
+                        x: width,
+                        y: 0.0,
+                        z: 0.0,
+                    },
+                col: color,
+            },
+            Vertex {
+                pos: pos
+                    + Vec3 {
+                        x: 0.0,
+                        y: -height,
+                        z: 0.0,
+                    },
+                col: color,
+            },
+            Vertex {
+                pos: pos
+                    + Vec3 {
+                        x: 0.0,
+                        y: -height,
+                        z: 0.0,
+                    },
+                col: color,
+            },
+            Vertex {
+                pos: pos
+                    + Vec3 {
+                        x: width,
+                        y: 0.0,
+                        z: 0.0,
+                    },
+                col: color,
+            },
+            Vertex {
+                pos: pos
+                    + Vec3 {
+                        x: width,
+                        y: -height,
+                        z: 0.0,
+                    },
+                col: color,
+            },
         ];
         self.colored_vert_queue.extend(vertices);
     }
@@ -129,18 +223,15 @@ impl SimpleRenderer {
         }
     }
 
-    pub fn output_size(&self) -> (u32,u32) {
-        (
-            self.surface_config.width,
-            self.surface_config.height,
-        )
+    pub fn output_size(&self) -> (u32, u32) {
+        (self.surface_config.width, self.surface_config.height)
     }
 
     fn window_to_clip_pos(&self, pos: Vec2) -> Vec2 {
         let (width_px, height_px) = self.output_size();
         vec2(
             (pos.x / width_px as f32) * 2.0 - 1.0,
-            ((height_px as f32 - pos.y) / height_px as f32) * 2.0 - 1.0
+            ((height_px as f32 - pos.y) / height_px as f32) * 2.0 - 1.0,
         )
     }
     fn window_to_clip_scale(&self, vec: Vec2) -> Vec2 {
