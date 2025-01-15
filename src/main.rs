@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
+use glam::vec2;
+use glam::vec3;
 use onitama::graphics::renderer::SimpleRenderer;
+use onitama::graphics::renderer::TexHandle;
 // use onitama::ai::AIOpponent;
 // use onitama::game::*;
 // use onitama::graphics::*;
@@ -27,9 +30,11 @@ const HEIGHT: u32 = 800;
 struct GFXState<'a> {
     surface: wgpu::Surface<'a>,
     device: Arc<wgpu::Device>,
-    queue: wgpu::Queue,
+    queue: Arc<wgpu::Queue>,
     _config: Arc<wgpu::SurfaceConfiguration>,
     _size: winit::dpi::PhysicalSize<u32>,
+    disciple_tex: TexHandle,
+    sensei_tex: TexHandle,
     window: Arc<Window>,
     renderer: SimpleRenderer,
 }
@@ -81,14 +86,35 @@ impl<'a> GFXState<'a> {
         };
         surface.configure(&device, &config);
         let device_arc = Arc::new(device);
+        let queue_arc = Arc::new(queue);
         let config_arc = Arc::new(config);
-        let renderer = SimpleRenderer::new(&device_arc, config_arc.clone());
+        let mut renderer =
+            SimpleRenderer::new(device_arc.clone(), queue_arc.clone(), config_arc.clone());
+
+        // Load textures as RGBA8
+        let disciple_img = image::load(
+            std::io::BufReader::new(
+                std::fs::File::open("assets/disciple.png").expect("did not find 'assets/disciple.png'")
+            ),
+            image::ImageFormat::Png
+        ).expect("failed to decode asset").into_rgba8();
+        let sensei_img = image::load(
+            std::io::BufReader::new(
+                std::fs::File::open("assets/sensei.png").expect("did not find 'assets/sensei.png'")
+            ),
+            image::ImageFormat::Png
+        ).expect("failed to decode asset").into_rgba8();
+
+        let disciple_tex = renderer.make_texture(disciple_img.into());
+        let sensei_tex = renderer.make_texture(sensei_img.into());
         Self {
             surface,
             device: device_arc,
-            queue,
+            queue: queue_arc,
             _config: config_arc,
             _size: size,
+            disciple_tex,
+            sensei_tex,
             window: window_arc,
             renderer,
         }
@@ -118,17 +144,18 @@ impl<'a> GFXState<'a> {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
-            // render_board(&mut self.renderer, &mut render_pass, &self.queue);
             let test_gfx_board = onitama::graphics::board::GraphicBoard::new(&self.renderer);
             test_gfx_board.draw_board(&mut self.renderer);
-            test_gfx_board.highlight_tiles(
-                &mut self.renderer,
-                &[
-                    onitama::game::Pos::from_index(0),
-                    onitama::game::Pos::from_index(1),
-                    onitama::game::Pos::from_index(5),
-                ],
-            );
+            // test_gfx_board.highlight_tiles(
+            //     &mut self.renderer,
+            //     &[
+            //         onitama::game::Pos::from_index(0),
+            //         onitama::game::Pos::from_index(1),
+            //         onitama::game::Pos::from_index(5),
+            //     ],
+            // );
+            self.renderer.draw_textured_rect(vec2(70.0, 30.0), 100.0, 100.0, vec3(1.0, 0.0, 0.0), self.sensei_tex);
+            self.renderer.draw_textured_rect(vec2(10.0, 10.0), 100.0, 100.0, vec3(1.0, 1.0, 1.0), self.disciple_tex);
             self.renderer.render(&self.queue, &mut render_pass);
         }
 
