@@ -12,9 +12,6 @@ pub struct GraphicCard {
     pub rect: Rect,
 }
 impl GraphicCard {
-    const WIDTH: f32 = 200.0;
-    const HEIGHT: f32 = 200.0;
-
     pub fn new(game_card: Card, rect: Rect) -> Self {
         Self { game_card, rect }
     }
@@ -88,30 +85,29 @@ impl CardGraphicManager {
     pub fn new(game_board: &Board, rect: Rect) -> Self {
         let cards = game_board.cards();
         let (width, height) = rect.size.into();
-        let card_w = (width / 2.0).min(GraphicCard::WIDTH);
-        let card_h = (height / 3.0).min(GraphicCard::HEIGHT);
+        let card_w = f32::min(width / 2.0, height / 3.0);
         let x = rect.origin.x;
         let y = rect.origin.y;
         let w = width;
         let h = height;
         let red_card_0 = GraphicCard::new(
             cards[0],
-            Rect::new(vec2(x, y + h - card_h), vec2(card_w, card_h)),
+            Rect::new(vec2(x, y + h - card_w), vec2(card_w, card_w)),
         );
         let red_card_1 = GraphicCard::new(
             cards[1],
-            Rect::new(vec2(x + w - card_w, y + h - card_h), vec2(card_w, card_h)),
+            Rect::new(vec2(x + w - card_w, y + h - card_w), vec2(card_w, card_w)),
         );
-        let blue_card_0 = GraphicCard::new(cards[2], Rect::new(vec2(x, y), vec2(card_w, card_h)));
+        let blue_card_0 = GraphicCard::new(cards[2], Rect::new(vec2(x, y), vec2(card_w, card_w)));
         let blue_card_1 = GraphicCard::new(
             cards[3],
-            Rect::new(vec2(x + w - card_w, y), vec2(card_w, card_h)),
+            Rect::new(vec2(x + w - card_w, y), vec2(card_w, card_w)),
         );
         let transfer_card = GraphicCard::new(
             cards[4],
             Rect::new(
-                vec2(x + (w - card_w) / 2.0, y + (h - card_h) / 2.0),
-                vec2(card_w, card_h),
+                vec2(x + (w - card_w) / 2.0, y + (h - card_w) / 2.0),
+                vec2(card_w, card_w),
             ),
         );
         Self {

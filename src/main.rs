@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use glam::vec2;
 use onitama::graphics::renderer::SimpleRenderer;
 use onitama::graphics::renderer::TexHandle;
 // use onitama::ai::AIOpponent;
@@ -149,7 +148,7 @@ impl<'a> GFXState<'a> {
                 timestamp_writes: None,
             });
             let test_board = onitama::game::Board::random_cards();
-            let test_gfx_board = onitama::graphics::board::GraphicBoard::new(&self.renderer);
+            let test_gfx_board = onitama::graphics::board::GraphicBoard::new(&self.renderer, onitama::graphics::Rect::new(glam::Vec2::ZERO, glam::vec2(800.0,600.0)));
             test_gfx_board.draw_board(&mut self.renderer);
             // test_gfx_board.highlight_tiles(
             //     &mut self.renderer,
@@ -170,7 +169,7 @@ impl<'a> GFXState<'a> {
                 &test_board,
                 onitama::graphics::Rect::new(
                     glam::vec2(test_gfx_board.board_width(), 0.0),
-                    vec2(WIDTH as f32 - test_gfx_board.board_width(), HEIGHT as f32),
+                    glam::vec2(800.0 - test_gfx_board.board_width(), 600.0),
                 ),
             );
             test_card_manager.draw(&mut self.renderer, true);
@@ -251,8 +250,10 @@ fn main() {
     let mut app = OnitamaApp { gfx_state: None };
 
     event_loop.run_app(&mut app).unwrap();
+}
 
-    // mixer::open_audio(
+
+// mixer::open_audio(
     //     mixer::DEFAULT_FREQUENCY,
     //     mixer::DEFAULT_FORMAT,
     //     mixer::DEFAULT_CHANNELS,
@@ -482,7 +483,6 @@ fn main() {
     //         }
     //     }
     // }
-}
 
 // struct Inputs {
 //     pub mouse_pressed: bool,

@@ -14,11 +14,10 @@ pub struct GraphicBoard {
     tile_corners: [Vec2; 25],
 }
 impl GraphicBoard {
-    pub fn new(renderer: &SimpleRenderer) -> Self {
+    pub fn new(renderer: &SimpleRenderer, rect: Rect) -> Self {
         const LINEWIDTH: f32 = 10.0; //px
 
-        let screen_size = renderer.output_size();
-        let board_width = u32::min(screen_size.0, screen_size.1) as f32;
+        let board_width = f32::min(rect.size.x, rect.size.y);
         let tile_width = (board_width - LINEWIDTH * 6.0) / 5.0;
         let origin = vec2(0.0, 0.0);
         let mut tiles = [Rect::new(Vec2::ZERO, Vec2::ZERO); 25];
