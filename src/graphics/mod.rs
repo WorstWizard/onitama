@@ -8,6 +8,7 @@ const ANIM_TIME: f32 = 0.25;
 use crate::cards::Card;
 use crate::game::*;
 pub mod board;
+pub mod piece;
 pub mod renderer;
 
 mod colors {
@@ -22,98 +23,12 @@ mod colors {
     pub const CARD_TILE: Color = Color::new(130.0 / 255.0, 130.0 / 255.0, 100.0 / 255.0);
     pub const CARD_SELECTED: Color = Color::new(250.0 / 255.0, 250.0 / 255.0, 220.0 / 255.0);
     pub const CARD_CENTER: Color = Color::new(80.0 / 255.0, 80.0 / 255.0, 40.0 / 255.0);
+    pub const PIECE_RED: Color = Color::new(1.0, 0.2, 0.2);
+    pub const PIECE_BLUE: Color = Color::new(0.2, 0.2, 1.0);
 }
 
 /*
-pub struct PieceGraphicsManager<'tex> {
-    piece_graphics: [Option<GraphicPiece<'tex>>; 25],
-    selected_index: Option<usize>,
-}
-impl<'tex> PieceGraphicsManager<'tex> {
-    pub fn new(
-        graphic_board: &GraphicBoard,
-        game_board: &Board,
-        textures: &'tex PieceTextures<'tex>,
-    ) -> Self {
-        // Create a separate graphics object for each piece
-        const ARR_INIT: Option<GraphicPiece> = None;
-        let mut piece_graphics = [ARR_INIT; 25];
-        for (i, (corner, piece)) in graphic_board
-            .tile_corners()
-            .iter()
-            .zip(game_board.squares().iter())
-            .enumerate()
-        {
-            if let Some(piece) = piece {
-                let texture = match *piece {
-                    Piece::RedDisciple => &textures.red_disciple,
-                    Piece::RedSensei => &textures.red_sensei,
-                    Piece::BlueDisciple => &textures.blue_disciple,
-                    Piece::BlueSensei => &textures.blue_sensei,
-                };
-                let board_pos = Pos::from_index(i);
-                let mut new_piece = GraphicPiece::new(texture, board_pos);
-                new_piece.x = corner.0;
-                new_piece.y = corner.1;
-                new_piece.width = graphic_board.tile_width;
-                new_piece.height = graphic_board.tile_width;
-                piece_graphics[i] = Some(new_piece);
-            }
-        }
-        PieceGraphicsManager {
-            piece_graphics,
-            selected_index: None,
-        }
-    }
-    pub fn remove_at_pos(&mut self, pos: Pos) {
-        self.piece_graphics[pos.to_index()] = None;
-    }
-    pub fn select_at_pos(&mut self, pos: Pos) {
-        if self.piece_graphics[pos.to_index()].is_some() {
-            self.selected_index = Some(pos.to_index())
-        } else {
-            self.selected_index = None
-        }
-    }
-    pub fn selected_piece(&mut self) -> Option<&GraphicPiece<'tex>> {
-        if let Some(i) = self.selected_index {
-            return self.piece_graphics[i].as_ref();
-        }
-        None
-    }
-    pub fn selected_piece_mut(&mut self) -> Option<&mut GraphicPiece<'tex>> {
-        if let Some(i) = self.selected_index {
-            return self.piece_graphics[i].as_mut();
-        }
-        None
-    }
-    pub fn draw(&self, canvas: &mut Canvas<Window>) {
-        for piece in self.piece_graphics.iter().flatten() {
-            piece.draw(canvas)
-        }
-        if let Some(i) = self.selected_index {
-            self.piece_graphics[i].as_ref().unwrap().draw(canvas)
-        }
-    }
-    /// Moves a piece from one board position to another, deleting a piece if one is already present
-    /// Unselects any held piece
-    /// Does not check whether the move is legal, or the move is on top of itself
-    pub fn make_move(&mut self, graphic_board: &GraphicBoard, from: Pos, to: Pos) {
-        self.unselect();
-        self.remove_at_pos(to);
-        self.piece_graphics[to.to_index()] = self.piece_graphics[from.to_index()].take();
-        self.piece_graphics[from.to_index()] = None;
-        let to_corner = graphic_board.tile_corners()[to.to_index()];
-        let piece_mut = self.piece_graphics[to.to_index()].as_mut().unwrap();
-        piece_mut.board_pos = to;
-        piece_mut.x = to_corner.0;
-        piece_mut.y = to_corner.1;
-    }
 
-    pub fn unselect(&mut self) {
-        self.selected_index = None;
-    }
-}
 
 pub struct PieceTextures<'a> {
     red_disciple: Texture<'a>,
@@ -141,39 +56,7 @@ impl<'a> PieceTextures<'a> {
     }
 }
 
-/// Tracks and draws an individual piece
-#[derive(Clone)]
-pub struct GraphicPiece<'tex> {
-    pub x: i32,
-    pub y: i32,
-    pub board_pos: Pos,
-    pub width: u32,
-    pub height: u32,
-    texture: &'tex Texture<'tex>,
-}
-impl<'tex> GraphicPiece<'tex> {
-    pub fn new(texture: &'tex Texture, board_pos: Pos) -> Self {
-        let width = texture.query().width;
-        let height = texture.query().height;
-        GraphicPiece {
-            x: 0,
-            y: 0,
-            board_pos,
-            width,
-            height,
-            texture,
-        }
-    }
-    pub fn draw(&self, canvas: &mut Canvas<Window>) {
-        canvas
-            .copy(
-                self.texture,
-                None,
-                Rect::new(self.x, self.y, self.width, self.height),
-            )
-            .unwrap();
-    }
-}
+
 
 #[derive(Clone)]
 pub struct GraphicCard {

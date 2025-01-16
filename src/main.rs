@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use glam::vec2;
-use glam::vec3;
 use onitama::graphics::renderer::SimpleRenderer;
 use onitama::graphics::renderer::TexHandle;
 // use onitama::ai::AIOpponent;
@@ -144,6 +142,7 @@ impl<'a> GFXState<'a> {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
+            let test_board = onitama::game::Board::random_cards();
             let test_gfx_board = onitama::graphics::board::GraphicBoard::new(&self.renderer);
             test_gfx_board.draw_board(&mut self.renderer);
             // test_gfx_board.highlight_tiles(
@@ -154,8 +153,10 @@ impl<'a> GFXState<'a> {
             //         onitama::game::Pos::from_index(5),
             //     ],
             // );
-            self.renderer.draw_textured_rect(vec2(70.0, 30.0), 100.0, 100.0, vec3(1.0, 0.0, 0.0), self.sensei_tex);
-            self.renderer.draw_textured_rect(vec2(10.0, 10.0), 100.0, 100.0, vec3(1.0, 1.0, 1.0), self.disciple_tex);
+            let test_piece_manager = onitama::graphics::piece::PieceGraphicsManager::new(&test_gfx_board, &test_board, self.disciple_tex, self.sensei_tex);
+            test_piece_manager.draw(&mut self.renderer);
+            // self.renderer.draw_textured_rect(vec2(70.0, 30.0), 100.0, 100.0, vec3(1.0, 0.0, 0.0), self.sensei_tex);
+            // self.renderer.draw_textured_rect(vec2(10.0, 10.0), 100.0, 100.0, vec3(1.0, 1.0, 1.0), self.disciple_tex);
             self.renderer.render(&self.queue, &mut render_pass);
         }
 

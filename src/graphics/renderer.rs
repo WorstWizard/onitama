@@ -12,13 +12,18 @@ struct Vertex {
 }
 
 struct Texture {
-    texture: wgpu::Texture,
-    extent: wgpu::Extent3d,
-    view: wgpu::TextureView,
+    _texture: wgpu::Texture,
+    _extent: wgpu::Extent3d,
+    _view: wgpu::TextureView,
     bind_group: wgpu::BindGroup,
 }
 #[derive(Clone, Copy)]
-pub struct TexHandle(usize);
+pub struct TexHandle(usize, u32, u32);
+impl TexHandle {
+    pub fn size(&self) -> (u32,u32) {
+        (self.1, self.2)
+    }
+}
 
 const VERT_BUFFER_SIZE: u64 = 1 << 20; // 1MiB, hardcoded, should be complete overkill for this program
 pub struct SimpleRenderer {
@@ -213,13 +218,14 @@ impl SimpleRenderer {
             ],
         });
         self.textures.push(Texture {
-            texture,
-            extent: texture_extent,
-            view,
+            _texture: texture,
+            _extent: texture_extent,
+            _view: view,
             bind_group,
         });
         self.textured_vert_queues.push(vec![]);
-        TexHandle(self.textures.len() - 1)
+
+        TexHandle(self.textures.len() - 1, texture_extent.width, texture_extent.height)
     }
 
     /// Rectangle specified in window coordinates.

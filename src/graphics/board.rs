@@ -109,6 +109,9 @@ impl GraphicBoard {
     pub fn board_width(&self) -> f32 {
         self.board_width
     }
+    pub fn tile_width(&self) -> f32 {
+        self.tile_width
+    }
     /// If the given position in window coords is on a tile on the board, returns that position.
     pub fn window_to_board_pos(&self, pos: Vec2) -> Option<Pos> {
         for (i, tile) in self.tiles.iter().enumerate() {
