@@ -2,31 +2,8 @@ use glam::{vec2, Vec2};
 
 use super::colors;
 use super::renderer::SimpleRenderer;
+use super::Rect;
 use crate::game::Pos;
-
-#[derive(Clone, Copy)]
-struct Rect {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-}
-impl Rect {
-    fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
-        Rect {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-    fn contains_point(&self, pos: Vec2) -> bool {
-        pos.x >= self.x
-            && pos.x < self.x + self.width
-            && pos.y >= self.y
-            && pos.y < self.y + self.height
-    }
-}
 
 /// Draws board and provides offsets for individual tiles
 pub struct GraphicBoard {
@@ -44,14 +21,14 @@ impl GraphicBoard {
         let board_width = u32::min(screen_size.0, screen_size.1) as f32;
         let tile_width = (board_width - LINEWIDTH * 6.0) / 5.0;
         let origin = vec2(0.0, 0.0);
-        let mut tiles = [Rect::new(0.0, 0.0, 0.0, 0.0); 25];
+        let mut tiles = [Rect::new(Vec2::ZERO, Vec2::ZERO); 25];
         let mut tile_corners = [vec2(0.0, 0.0); 25];
         let mut i = 0;
         for row in 0..5 {
             for col in 0..5 {
                 let tile_x = LINEWIDTH + origin.x + col as f32 * (tile_width + LINEWIDTH);
                 let tile_y = LINEWIDTH + origin.y + row as f32 * (tile_width + LINEWIDTH);
-                tiles[i] = Rect::new(tile_x, tile_y, tile_width, tile_width);
+                tiles[i] = Rect::new(vec2(tile_x, tile_y), vec2(tile_width, tile_width));
                 tile_corners[i] = vec2(tile_x, tile_y);
                 i += 1;
             }
@@ -66,13 +43,14 @@ impl GraphicBoard {
     }
     pub fn draw_board(&self, renderer: &mut SimpleRenderer) {
         renderer.draw_filled_rect(
-            self.origin,
-            self.board_width,
-            self.board_width,
+            Rect::new(self.origin, Vec2::splat(self.board_width)),
             colors::BOARD_BG,
         );
         for pos in self.tile_corners() {
-            renderer.draw_filled_rect(*pos, self.tile_width, self.tile_width, colors::BOARD_TILE)
+            renderer.draw_filled_rect(
+                Rect::new(*pos, Vec2::splat(self.tile_width)),
+                colors::BOARD_TILE,
+            )
         }
         // Draw temples
         let w = self.tile_width / 3.0;
@@ -80,15 +58,17 @@ impl GraphicBoard {
         let red_start_corner = self.tile_corners[22];
         let blue_start_corner = self.tile_corners[2];
         renderer.draw_filled_rect(
-            vec2(red_start_corner.x + w, red_start_corner.y + 3.0 * h),
-            w,
-            h,
+            Rect::new(
+                vec2(red_start_corner.x + w, red_start_corner.y + 3.0 * h),
+                vec2(w, h),
+            ),
             colors::BOARD_RED_TEMPLE,
         );
         renderer.draw_filled_rect(
-            vec2(blue_start_corner.x + w, blue_start_corner.y),
-            w,
-            h,
+            Rect::new(
+                vec2(blue_start_corner.x + w, blue_start_corner.y),
+                vec2(w, h),
+            ),
             colors::BOARD_BLUE_TEMPLE,
         );
     }
@@ -96,9 +76,7 @@ impl GraphicBoard {
         for pos in positions {
             let corner_pos = self.tile_corners[pos.to_index()];
             renderer.draw_filled_rect(
-                corner_pos,
-                self.tile_width,
-                self.tile_width,
+                Rect::new(corner_pos, Vec2::splat(self.tile_width)),
                 colors::BOARD_HIGHLIGHT,
             );
         }

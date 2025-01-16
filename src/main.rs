@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use glam::vec2;
 use onitama::graphics::renderer::SimpleRenderer;
 use onitama::graphics::renderer::TexHandle;
 // use onitama::ai::AIOpponent;
@@ -92,16 +93,21 @@ impl<'a> GFXState<'a> {
         // Load textures as RGBA8
         let disciple_img = image::load(
             std::io::BufReader::new(
-                std::fs::File::open("assets/disciple.png").expect("did not find 'assets/disciple.png'")
+                std::fs::File::open("assets/disciple.png")
+                    .expect("did not find 'assets/disciple.png'"),
             ),
-            image::ImageFormat::Png
-        ).expect("failed to decode asset").into_rgba8();
+            image::ImageFormat::Png,
+        )
+        .expect("failed to decode asset")
+        .into_rgba8();
         let sensei_img = image::load(
             std::io::BufReader::new(
-                std::fs::File::open("assets/sensei.png").expect("did not find 'assets/sensei.png'")
+                std::fs::File::open("assets/sensei.png").expect("did not find 'assets/sensei.png'"),
             ),
-            image::ImageFormat::Png
-        ).expect("failed to decode asset").into_rgba8();
+            image::ImageFormat::Png,
+        )
+        .expect("failed to decode asset")
+        .into_rgba8();
 
         let disciple_tex = renderer.make_texture(disciple_img.into());
         let sensei_tex = renderer.make_texture(sensei_img.into());
@@ -153,13 +159,19 @@ impl<'a> GFXState<'a> {
             //         onitama::game::Pos::from_index(5),
             //     ],
             // );
-            let test_piece_manager = onitama::graphics::piece::PieceGraphicsManager::new(&test_gfx_board, &test_board, self.disciple_tex, self.sensei_tex);
+            let test_piece_manager = onitama::graphics::piece::PieceGraphicsManager::new(
+                &test_gfx_board,
+                &test_board,
+                self.disciple_tex,
+                self.sensei_tex,
+            );
             test_piece_manager.draw(&mut self.renderer);
             let test_card_manager = onitama::graphics::card::CardGraphicManager::new(
                 &test_board,
-                glam::vec2(test_gfx_board.board_width(), 0.0),
-                WIDTH as f32 - test_gfx_board.board_width(),
-                HEIGHT as f32
+                onitama::graphics::Rect::new(
+                    glam::vec2(test_gfx_board.board_width(), 0.0),
+                    vec2(WIDTH as f32 - test_gfx_board.board_width(), HEIGHT as f32),
+                ),
             );
             test_card_manager.draw(&mut self.renderer, true);
             // self.renderer.draw_textured_rect(vec2(70.0, 30.0), 100.0, 100.0, vec3(1.0, 0.0, 0.0), self.sensei_tex);

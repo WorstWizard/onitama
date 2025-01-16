@@ -1,15 +1,15 @@
 use glam::{vec2, Vec2};
 
 use super::board::GraphicBoard;
-use super::renderer::*;
 use super::colors;
-use crate::game::{Pos, Piece, Board};
+use super::renderer::*;
+use super::Rect;
+use crate::game::{Board, Piece, Pos};
 
 /// Tracks and draws an individual piece
 #[derive(Clone)]
 pub struct GraphicPiece {
-    pub origin: Vec2,
-    pub size: Vec2,
+    pub rect: Rect,
     pub board_pos: Pos,
     piece: Piece,
     texture: TexHandle,
@@ -17,8 +17,7 @@ pub struct GraphicPiece {
 impl GraphicPiece {
     pub fn new(texture: TexHandle, size: Vec2, piece: Piece, board_pos: Pos) -> Self {
         GraphicPiece {
-            origin: vec2(0.0, 0.0),
-            size,
+            rect: Rect::new(Vec2::ZERO, size),
             board_pos,
             piece,
             texture,
@@ -30,13 +29,7 @@ impl GraphicPiece {
         } else {
             colors::PIECE_BLUE
         };
-        renderer.draw_textured_rect(
-            self.origin,
-            self.size.x,
-            self.size.y,
-            color,
-            self.texture
-        );
+        renderer.draw_textured_rect(self.rect, color, self.texture);
     }
 }
 
@@ -69,7 +62,7 @@ impl<'board> PieceGraphicsManager<'board> {
                 let board_pos = Pos::from_index(i);
                 let size = vec2(graphic_board.tile_width(), graphic_board.tile_width());
                 let mut new_piece = GraphicPiece::new(texture, size, *piece, board_pos);
-                new_piece.origin = *corner;
+                new_piece.rect.origin = *corner;
                 piece_graphics[i] = Some(new_piece);
             }
         }
@@ -120,7 +113,7 @@ impl<'board> PieceGraphicsManager<'board> {
         let to_corner = self.graphic_board.tile_corners()[to.to_index()];
         let piece_mut = self.piece_graphics[to.to_index()].as_mut().unwrap();
         piece_mut.board_pos = to;
-        piece_mut.origin = to_corner;
+        piece_mut.rect.origin = to_corner;
     }
 
     pub fn unselect(&mut self) {

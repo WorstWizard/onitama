@@ -1,23 +1,22 @@
 use glam::{vec2, Vec2};
 
-use crate::game::Board;
-use crate::cards::Card;
 use super::colors;
 use super::renderer::SimpleRenderer;
+use crate::cards::Card;
+use crate::game::Board;
+use crate::graphics::Rect;
 
 #[derive(Clone)]
 pub struct GraphicCard {
     game_card: Card,
-    pub origin: Vec2,
-    width: f32,
-    height: f32,
+    pub rect: Rect,
 }
 impl GraphicCard {
     const WIDTH: f32 = 200.0;
     const HEIGHT: f32 = 200.0;
 
-    pub fn new(game_card: Card, origin: Vec2, width: f32, height: f32) -> Self {
-        Self { game_card, origin, width, height }
+    pub fn new(game_card: Card, rect: Rect) -> Self {
+        Self { game_card, rect }
     }
     pub fn card(&self) -> Card {
         self.game_card
@@ -30,11 +29,12 @@ impl GraphicCard {
         } else {
             colors::CARD_BG
         };
-        renderer.draw_filled_rect(self.origin, self.width, self.height, bg_color);
+        renderer.draw_filled_rect(self.rect, bg_color);
 
-        let (x, y) = self.origin.into();
-        let sub_rect_w = (self.width - 6.0 * LINEWIDTH) / 5.0;
-        let sub_rect_h = (self.height - 6.0 * LINEWIDTH) / 5.0;
+        let (x, y) = self.rect.origin.into();
+        let (width, height) = self.rect.size.into();
+        let sub_rect_w = (width - 6.0 * LINEWIDTH) / 5.0;
+        let sub_rect_h = (height - 6.0 * LINEWIDTH) / 5.0;
         let offsets = if upwards {
             self.game_card.offsets()
         } else {
@@ -42,40 +42,40 @@ impl GraphicCard {
         };
         for row in 0..5 {
             for col in 0..5 {
-                renderer
-                    .draw_filled_rect(
+                renderer.draw_filled_rect(
+                    Rect::new(
                         vec2(
                             x + LINEWIDTH + col as f32 * (sub_rect_w + LINEWIDTH),
-                            y + LINEWIDTH + row as f32 * (sub_rect_h + LINEWIDTH)
+                            y + LINEWIDTH + row as f32 * (sub_rect_h + LINEWIDTH),
                         ),
-                        sub_rect_w,
-                        sub_rect_h,
-                        colors::CARD_TILE_BG
-                    );
+                        vec2(sub_rect_w, sub_rect_h),
+                    ),
+                    colors::CARD_TILE_BG,
+                );
             }
         }
         for pos in offsets {
-            renderer
-                .draw_filled_rect(
+            renderer.draw_filled_rect(
+                Rect::new(
                     vec2(
                         x + LINEWIDTH + (pos.1 as f32 + 2.0) * (sub_rect_w + LINEWIDTH),
-                        y + LINEWIDTH + (pos.0 as f32 + 2.0) * (sub_rect_h + LINEWIDTH)
+                        y + LINEWIDTH + (pos.0 as f32 + 2.0) * (sub_rect_h + LINEWIDTH),
                     ),
-                    sub_rect_w,
-                    sub_rect_h,
-                    colors::CARD_TILE
-                );
+                    vec2(sub_rect_w, sub_rect_h),
+                ),
+                colors::CARD_TILE,
+            );
         }
-        renderer
-            .draw_filled_rect(
+        renderer.draw_filled_rect(
+            Rect::new(
                 vec2(
                     x + LINEWIDTH + 2.0 * (sub_rect_w + LINEWIDTH),
-                    y + LINEWIDTH + 2.0 * (sub_rect_h + LINEWIDTH)
+                    y + LINEWIDTH + 2.0 * (sub_rect_h + LINEWIDTH),
                 ),
-                sub_rect_w,
-                sub_rect_h,
-                colors::CARD_CENTER
-            )
+                vec2(sub_rect_w, sub_rect_h),
+            ),
+            colors::CARD_CENTER,
+        )
     }
 }
 pub struct CardGraphicManager {
@@ -85,62 +85,35 @@ pub struct CardGraphicManager {
     selected_card: Option<GraphicCard>,
 }
 impl CardGraphicManager {
-    pub fn new(game_board: &Board, origin: Vec2, width: f32, height: f32) -> Self {
+    pub fn new(game_board: &Board, rect: Rect) -> Self {
         let cards = game_board.cards();
+        let (width, height) = rect.size.into();
         let card_w = (width / 2.0).min(GraphicCard::WIDTH);
         let card_h = (height / 3.0).min(GraphicCard::HEIGHT);
-        let x = origin.x;
-        let y = origin.y;
+        let x = rect.origin.x;
+        let y = rect.origin.y;
         let w = width;
         let h = height;
         let red_card_0 = GraphicCard::new(
             cards[0],
-            vec2(x, y + h - card_h),
-            card_w,
-            card_h
+            Rect::new(vec2(x, y + h - card_h), vec2(card_w, card_h)),
         );
         let red_card_1 = GraphicCard::new(
             cards[1],
-            vec2(x + w - card_w, y + h - card_h),
-            card_w,
-            card_h
+            Rect::new(vec2(x + w - card_w, y + h - card_h), vec2(card_w, card_h)),
         );
-        let blue_card_0 = GraphicCard::new(
-            cards[2],
-            vec2(x, y),
-            card_w,
-            card_h
-        );
+        let blue_card_0 = GraphicCard::new(cards[2], Rect::new(vec2(x, y), vec2(card_w, card_h)));
         let blue_card_1 = GraphicCard::new(
             cards[3],
-            vec2(x + w - card_w, y),
-            card_w,
-            card_h
+            Rect::new(vec2(x + w - card_w, y), vec2(card_w, card_h)),
         );
         let transfer_card = GraphicCard::new(
             cards[4],
-            vec2(x + (w - card_w) / 2.0, y + (h - card_h) / 2.0),
-            card_w,
-            card_h
+            Rect::new(
+                vec2(x + (w - card_w) / 2.0, y + (h - card_h) / 2.0),
+                vec2(card_w, card_h),
+            ),
         );
-        // let red_card_1 = GraphicCard::new(
-        //     cards[1],
-        //     Rect::new(x + w - card_w, y + h - card_h, card_w as u32, card_h as u32),
-        // );
-        // let blue_card_0 = GraphicCard::new(cards[2], Rect::new(x, y, card_w as u32, card_h as u32));
-        // let blue_card_1 = GraphicCard::new(
-        //     cards[3],
-        //     Rect::new(x + w - card_w, y, card_w as u32, card_h as u32),
-        // );
-        // let transfer_card = GraphicCard::new(
-        //     cards[4],
-        //     Rect::new(
-        //         x + (w - card_w) / 2,
-        //         y + (h - card_h) / 2,
-        //         card_w as u32,
-        //         card_h as u32,
-        //     ),
-        // );
         Self {
             red_cards: (red_card_0, red_card_1),
             blue_cards: (blue_card_0, blue_card_1),
@@ -148,19 +121,19 @@ impl CardGraphicManager {
             selected_card: None,
         }
     }
-    // pub fn select_by_click(&mut self, clicked_pos: (i32, i32), red_to_move: bool) {
-    //     if red_to_move {
-    //         if self.red_cards.0.rect.contains_point(clicked_pos) {
-    //             self.selected_card = Some(self.red_cards.0.clone())
-    //         } else if self.red_cards.1.rect.contains_point(clicked_pos) {
-    //             self.selected_card = Some(self.red_cards.1.clone())
-    //         }
-    //     } else if self.blue_cards.0.rect.contains_point(clicked_pos) {
-    //         self.selected_card = Some(self.blue_cards.0.clone())
-    //     } else if self.blue_cards.1.rect.contains_point(clicked_pos) {
-    //         self.selected_card = Some(self.blue_cards.1.clone())
-    //     }
-    // }
+    pub fn select_by_click(&mut self, clicked_pos: Vec2, red_to_move: bool) {
+        if red_to_move {
+            if self.red_cards.0.rect.contains_point(clicked_pos) {
+                self.selected_card = Some(self.red_cards.0.clone())
+            } else if self.red_cards.1.rect.contains_point(clicked_pos) {
+                self.selected_card = Some(self.red_cards.1.clone())
+            }
+        } else if self.blue_cards.0.rect.contains_point(clicked_pos) {
+            self.selected_card = Some(self.blue_cards.0.clone())
+        } else if self.blue_cards.1.rect.contains_point(clicked_pos) {
+            self.selected_card = Some(self.blue_cards.1.clone())
+        }
+    }
     pub fn select_card(&mut self, card: Card) {
         let mut idx = None;
         for (i, graphic_card) in self.cards().into_iter().enumerate() {

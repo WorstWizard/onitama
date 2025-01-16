@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
+use super::{Color, Rect};
 use glam::{vec2, vec3, Vec2, Vec3};
-pub type Color = Vec3;
+use std::sync::Arc;
 
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
 #[repr(C)]
@@ -20,7 +19,7 @@ struct Texture {
 #[derive(Clone, Copy)]
 pub struct TexHandle(usize, u32, u32);
 impl TexHandle {
-    pub fn size(&self) -> (u32,u32) {
+    pub fn size(&self) -> (u32, u32) {
         (self.1, self.2)
     }
 }
@@ -225,16 +224,20 @@ impl SimpleRenderer {
         });
         self.textured_vert_queues.push(vec![]);
 
-        TexHandle(self.textures.len() - 1, texture_extent.width, texture_extent.height)
+        TexHandle(
+            self.textures.len() - 1,
+            texture_extent.width,
+            texture_extent.height,
+        )
     }
 
     /// Rectangle specified in window coordinates.
     /// Origin is taken as the top-left corner of the rectangle.
-    pub fn draw_filled_rect(&mut self, origin: Vec2, width: f32, height: f32, color: Color) {
+    pub fn draw_filled_rect(&mut self, rect: Rect, color: Color) {
         let z = self.last_z_level - f32::EPSILON;
         self.last_z_level = z;
-        let pos_clip = self.window_to_clip_pos(origin);
-        let (width, height) = self.window_to_clip_scale(vec2(width, height)).into();
+        let pos_clip = self.window_to_clip_pos(rect.origin);
+        let (width, height) = self.window_to_clip_scale(rect.size).into();
 
         let pos = vec3(pos_clip.x, pos_clip.y, z);
         let vertices = [
@@ -299,11 +302,16 @@ impl SimpleRenderer {
 
     /// Rectangle specified in window coordinates.
     /// Origin is taken as the top-left corner of the rectangle.
-    pub fn draw_textured_rect(&mut self, origin: Vec2, width: f32, height: f32, modulate_color: Color, texture_handle: TexHandle) {
+    pub fn draw_textured_rect(
+        &mut self,
+        rect: Rect,
+        modulate_color: Color,
+        texture_handle: TexHandle,
+    ) {
         let z = self.last_z_level - f32::EPSILON;
         self.last_z_level = z;
-        let pos_clip = self.window_to_clip_pos(origin);
-        let (width, height) = self.window_to_clip_scale(vec2(width, height)).into();
+        let pos_clip = self.window_to_clip_pos(rect.origin);
+        let (width, height) = self.window_to_clip_scale(rect.size).into();
 
         let pos = vec3(pos_clip.x, pos_clip.y, z);
         let vertices = [

@@ -1,17 +1,37 @@
-// use sdl2::image::LoadTexture;
-// use sdl2::rect::Rect;
-// use sdl2::render::{Canvas, Texture, TextureCreator};
-// use sdl2::video::{Window, WindowContext};
-
-const ANIM_TIME: f32 = 0.25;
+use glam::{vec2, Vec2, Vec3};
 
 pub mod board;
-pub mod piece;
 pub mod card;
+pub mod piece;
 pub mod renderer;
 
+const ANIM_TIME: f32 = 0.25;
+pub type Color = Vec3;
+#[derive(Clone, Copy)]
+pub struct Rect {
+    pub origin: Vec2,
+    pub size: Vec2,
+}
+impl Rect {
+    pub fn new(origin: Vec2, size: Vec2) -> Self {
+        Rect { origin, size }
+    }
+    pub fn contains_point(&self, pos: Vec2) -> bool {
+        pos.x >= self.origin.x
+            && pos.x < self.origin.x + self.size.x
+            && pos.y >= self.origin.y
+            && pos.y < self.origin.y + self.size.y
+    }
+}
+#[test]
+fn contains_point() {
+    let rect = Rect::new(vec2(1.0, 2.0), vec2(10.0, 20.0));
+    assert!(rect.contains_point(vec2(5.0, 5.0)));
+    assert!(!rect.contains_point(vec2(11.0, 5.0)));
+}
+
 mod colors {
-    use super::renderer::Color;
+    use super::Color;
     pub const BOARD_TILE: Color = Color::new(1.0, 1.0, 1.0);
     pub const BOARD_BG: Color = Color::new(0.5, 0.5, 0.5);
     pub const BOARD_HIGHLIGHT: Color = Color::new(1.0, 1.0, 0.0);
