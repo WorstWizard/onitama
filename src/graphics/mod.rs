@@ -5,10 +5,9 @@
 
 const ANIM_TIME: f32 = 0.25;
 
-use crate::cards::Card;
-use crate::game::*;
 pub mod board;
 pub mod piece;
+pub mod card;
 pub mod renderer;
 
 mod colors {
@@ -28,36 +27,6 @@ mod colors {
 }
 
 /*
-
-
-pub struct PieceTextures<'a> {
-    red_disciple: Texture<'a>,
-    red_sensei: Texture<'a>,
-    blue_disciple: Texture<'a>,
-    blue_sensei: Texture<'a>,
-}
-impl<'a> PieceTextures<'a> {
-    pub fn init(tex_creator: &'a TextureCreator<WindowContext>) -> Self {
-        // Load piece textures and tint them
-        let mut red_disciple = tex_creator.load_texture("assets/disciple.png").unwrap();
-        let mut red_sensei = tex_creator.load_texture("assets/sensei.png").unwrap();
-        let mut blue_disciple = tex_creator.load_texture("assets/disciple.png").unwrap();
-        let mut blue_sensei = tex_creator.load_texture("assets/sensei.png").unwrap();
-        red_disciple.set_color_mod(255, 128, 128);
-        red_sensei.set_color_mod(255, 128, 128);
-        blue_disciple.set_color_mod(128, 128, 255);
-        blue_sensei.set_color_mod(128, 128, 255);
-        PieceTextures {
-            red_disciple,
-            red_sensei,
-            blue_disciple,
-            blue_sensei,
-        }
-    }
-}
-
-
-
 #[derive(Clone)]
 pub struct GraphicCard {
     game_card: Card,

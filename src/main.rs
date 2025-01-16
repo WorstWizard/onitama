@@ -155,6 +155,13 @@ impl<'a> GFXState<'a> {
             // );
             let test_piece_manager = onitama::graphics::piece::PieceGraphicsManager::new(&test_gfx_board, &test_board, self.disciple_tex, self.sensei_tex);
             test_piece_manager.draw(&mut self.renderer);
+            let test_card_manager = onitama::graphics::card::CardGraphicManager::new(
+                &test_board,
+                glam::vec2(test_gfx_board.board_width(), 0.0),
+                WIDTH as f32 - test_gfx_board.board_width(),
+                HEIGHT as f32
+            );
+            test_card_manager.draw(&mut self.renderer, true);
             // self.renderer.draw_textured_rect(vec2(70.0, 30.0), 100.0, 100.0, vec3(1.0, 0.0, 0.0), self.sensei_tex);
             // self.renderer.draw_textured_rect(vec2(10.0, 10.0), 100.0, 100.0, vec3(1.0, 1.0, 1.0), self.disciple_tex);
             self.renderer.render(&self.queue, &mut render_pass);
