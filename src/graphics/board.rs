@@ -86,7 +86,7 @@ impl GraphicBoard {
             colors::BOARD_RED_TEMPLE,
         );
         renderer.draw_filled_rect(
-            vec2(blue_start_corner.x + w, blue_start_corner.y + 3.0 * h),
+            vec2(blue_start_corner.x + w, blue_start_corner.y),
             w,
             h,
             colors::BOARD_BLUE_TEMPLE,
