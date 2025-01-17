@@ -1,13 +1,13 @@
 use super::{Color, Rect};
-use glam::{vec2, vec3, Vec2, Vec3};
+use glam::{vec2, Vec2};
 use std::sync::Arc;
 
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
 #[repr(C)]
 struct Vertex {
-    pos: Vec3,
-    col: Color,
+    pos: Vec2,
     tex: Vec2,
+    col: Color,
 }
 
 struct Texture {
@@ -37,7 +37,6 @@ pub struct SimpleRenderer {
     textures: Vec<Texture>,
     texture_sampler: wgpu::Sampler,
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    last_z_level: f32,
 }
 impl SimpleRenderer {
     pub fn new(
@@ -58,18 +57,18 @@ impl SimpleRenderer {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: wgpu::VertexFormat::Float32x2,
                     offset: 0,
                     shader_location: 0,
                 },
                 wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x3,
-                    offset: std::mem::offset_of!(Vertex, col) as u64,
+                    format: wgpu::VertexFormat::Float32x2,
+                    offset: std::mem::offset_of!(Vertex, tex) as u64,
                     shader_location: 1,
                 },
                 wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x2,
-                    offset: std::mem::offset_of!(Vertex, tex) as u64,
+                    format: wgpu::VertexFormat::Float32x3,
+                    offset: std::mem::offset_of!(Vertex, col) as u64,
                     shader_location: 2,
                 },
             ],
@@ -165,7 +164,6 @@ impl SimpleRenderer {
             texture_bind_group_layout,
             colored_pipeline,
             colored_vert_queue: vec![],
-            last_z_level: 1.0, // WebGPU NDC goes from 0 to 1, start at 1 and move primitives back to front
         }
     }
 
@@ -234,12 +232,8 @@ impl SimpleRenderer {
     /// Rectangle specified in window coordinates.
     /// Origin is taken as the top-left corner of the rectangle.
     pub fn draw_filled_rect(&mut self, rect: Rect, color: Color) {
-        let z = self.last_z_level - f32::EPSILON;
-        self.last_z_level = z;
-        let pos_clip = self.window_to_clip_pos(rect.origin);
+        let pos = self.window_to_clip_pos(rect.origin);
         let (width, height) = self.window_to_clip_scale(rect.size).into();
-
-        let pos = vec3(pos_clip.x, pos_clip.y, z);
         let vertices = [
             Vertex {
                 pos,
@@ -247,52 +241,27 @@ impl SimpleRenderer {
                 tex: Vec2::default(),
             },
             Vertex {
-                pos: pos
-                    + Vec3 {
-                        x: width,
-                        y: 0.0,
-                        z: 0.0,
-                    },
+                pos: pos + vec2(width, 0.0),
                 col: color,
                 tex: Vec2::default(),
             },
             Vertex {
-                pos: pos
-                    + Vec3 {
-                        x: 0.0,
-                        y: -height,
-                        z: 0.0,
-                    },
+                pos: pos + vec2(0.0, -height),
                 col: color,
                 tex: Vec2::default(),
             },
             Vertex {
-                pos: pos
-                    + Vec3 {
-                        x: 0.0,
-                        y: -height,
-                        z: 0.0,
-                    },
+                pos: pos + vec2(0.0, -height),
                 col: color,
                 tex: Vec2::default(),
             },
             Vertex {
-                pos: pos
-                    + Vec3 {
-                        x: width,
-                        y: 0.0,
-                        z: 0.0,
-                    },
+                pos: pos + vec2(width, 0.0),
                 col: color,
                 tex: Vec2::default(),
             },
             Vertex {
-                pos: pos
-                    + Vec3 {
-                        x: width,
-                        y: -height,
-                        z: 0.0,
-                    },
+                pos: pos + vec2(width, -height),
                 col: color,
                 tex: Vec2::default(),
             },
@@ -308,12 +277,8 @@ impl SimpleRenderer {
         modulate_color: Color,
         texture_handle: TexHandle,
     ) {
-        let z = self.last_z_level - f32::EPSILON;
-        self.last_z_level = z;
-        let pos_clip = self.window_to_clip_pos(rect.origin);
+        let pos = self.window_to_clip_pos(rect.origin);
         let (width, height) = self.window_to_clip_scale(rect.size).into();
-
-        let pos = vec3(pos_clip.x, pos_clip.y, z);
         let vertices = [
             Vertex {
                 pos,
@@ -321,52 +286,27 @@ impl SimpleRenderer {
                 tex: vec2(0.0, 0.0),
             },
             Vertex {
-                pos: pos
-                    + Vec3 {
-                        x: width,
-                        y: 0.0,
-                        z: 0.0,
-                    },
+                pos: pos + vec2(width, 0.0),
                 col: modulate_color,
                 tex: vec2(1.0, 0.0),
             },
             Vertex {
-                pos: pos
-                    + Vec3 {
-                        x: 0.0,
-                        y: -height,
-                        z: 0.0,
-                    },
+                pos: pos + vec2(0.0, -height),
                 col: modulate_color,
                 tex: vec2(0.0, 1.0),
             },
             Vertex {
-                pos: pos
-                    + Vec3 {
-                        x: 0.0,
-                        y: -height,
-                        z: 0.0,
-                    },
+                pos: pos + vec2(0.0, -height),
                 col: modulate_color,
                 tex: vec2(0.0, 1.0),
             },
             Vertex {
-                pos: pos
-                    + Vec3 {
-                        x: width,
-                        y: 0.0,
-                        z: 0.0,
-                    },
+                pos: pos + vec2(width, 0.0),
                 col: modulate_color,
                 tex: vec2(1.0, 0.0),
             },
             Vertex {
-                pos: pos
-                    + Vec3 {
-                        x: width,
-                        y: -height,
-                        z: 0.0,
-                    },
+                pos: pos + vec2(width, -height),
                 col: modulate_color,
                 tex: vec2(1.0, 1.0),
             },
@@ -430,7 +370,6 @@ impl SimpleRenderer {
         self.textured_vert_queues
             .iter_mut()
             .for_each(|vec| vec.clear());
-        self.last_z_level = 1.0;
     }
 
     pub fn output_size(&self) -> (u32, u32) {
