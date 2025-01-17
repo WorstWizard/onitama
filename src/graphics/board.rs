@@ -14,7 +14,7 @@ pub struct GraphicBoard {
     tile_corners: [Vec2; 25],
 }
 impl GraphicBoard {
-    pub fn new(renderer: &SimpleRenderer, rect: Rect) -> Self {
+    pub fn new(rect: Rect) -> Self {
         const LINEWIDTH: f32 = 10.0; //px
 
         let board_width = f32::min(rect.size.x, rect.size.y);

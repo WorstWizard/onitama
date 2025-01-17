@@ -149,7 +149,6 @@ impl<'a> GFXState<'a> {
             });
             let test_board = onitama::game::Board::random_cards();
             let test_gfx_board = onitama::graphics::board::GraphicBoard::new(
-                &self.renderer,
                 onitama::graphics::Rect::new(glam::Vec2::ZERO, glam::vec2(800.0, 600.0)),
             );
             test_gfx_board.draw_board(&mut self.renderer);
