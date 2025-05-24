@@ -1,7 +1,12 @@
 use std::sync::Arc;
 
+use glam::vec2;
+use glam::Vec2;
+use onitama::game::Board;
 use onitama::graphics::renderer::SimpleRenderer;
 use onitama::graphics::renderer::TexHandle;
+use onitama::graphics::Rect;
+use onitama::gui::GameGraphics;
 // use onitama::ai::AIOpponent;
 // use onitama::game::*;
 // use onitama::graphics::*;
@@ -122,7 +127,11 @@ impl<'a> GFXState<'a> {
             renderer,
         }
     }
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    fn render(
+        &mut self,
+        game_graphics: &GameGraphics,
+        red_to_move: bool,
+    ) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -147,36 +156,9 @@ impl<'a> GFXState<'a> {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
-            let test_board = onitama::game::Board::random_cards();
-            let test_gfx_board = onitama::graphics::board::GraphicBoard::new(
-                onitama::graphics::Rect::new(glam::Vec2::ZERO, glam::vec2(800.0, 600.0)),
-            );
-            test_gfx_board.draw_board(&mut self.renderer);
-            // test_gfx_board.highlight_tiles(
-            //     &mut self.renderer,
-            //     &[
-            //         onitama::game::Pos::from_index(0),
-            //         onitama::game::Pos::from_index(1),
-            //         onitama::game::Pos::from_index(5),
-            //     ],
-            // );
-            let test_piece_manager = onitama::graphics::piece::PieceGraphicsManager::new(
-                &test_gfx_board,
-                &test_board,
-                self.disciple_tex,
-                self.sensei_tex,
-            );
-            test_piece_manager.draw(&mut self.renderer);
-            let test_card_manager = onitama::graphics::card::CardGraphicManager::new(
-                &test_board,
-                onitama::graphics::Rect::new(
-                    glam::vec2(test_gfx_board.board_width(), 0.0),
-                    glam::vec2(800.0 - test_gfx_board.board_width(), 600.0),
-                ),
-            );
-            test_card_manager.draw(&mut self.renderer, true);
-            // self.renderer.draw_textured_rect(vec2(70.0, 30.0), 100.0, 100.0, vec3(1.0, 0.0, 0.0), self.sensei_tex);
-            // self.renderer.draw_textured_rect(vec2(10.0, 10.0), 100.0, 100.0, vec3(1.0, 1.0, 1.0), self.disciple_tex);
+
+            game_graphics.draw(&mut self.renderer, red_to_move);
+
             self.renderer.render(&self.queue, &mut render_pass);
         }
 
@@ -189,6 +171,8 @@ impl<'a> GFXState<'a> {
 
 struct OnitamaApp<'a> {
     gfx_state: Option<GFXState<'a>>,
+    game_board: Option<Board>,
+    game_graphics: Option<GameGraphics>,
 }
 impl ApplicationHandler for OnitamaApp<'_> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
@@ -203,6 +187,13 @@ impl ApplicationHandler for OnitamaApp<'_> {
             )
             .unwrap();
         self.gfx_state = Some(pollster::block_on(GFXState::new(window)));
+        self.game_board = Some(Board::random_cards());
+        self.game_graphics = Some(GameGraphics::new(
+            Rect::new(Vec2::ZERO, vec2(WIDTH as f32, HEIGHT as f32)),
+            self.game_board.as_ref().unwrap(),
+            self.gfx_state.as_ref().unwrap().disciple_tex,
+            self.gfx_state.as_ref().unwrap().sensei_tex,
+        ));
     }
     fn window_event(
         &mut self,
@@ -225,7 +216,10 @@ impl ApplicationHandler for OnitamaApp<'_> {
                 event_loop.exit();
             }
             winit::event::WindowEvent::RedrawRequested => {
-                match self.gfx_state.as_mut().unwrap().render() {
+                match self.gfx_state.as_mut().unwrap().render(
+                    self.game_graphics.as_ref().unwrap(),
+                    self.game_board.as_ref().unwrap().red_to_move(),
+                ) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         log::error!("Surface lost or resized");
@@ -249,7 +243,11 @@ fn main() {
     env_logger::init();
 
     let event_loop = EventLoop::new().unwrap();
-    let mut app = OnitamaApp { gfx_state: None };
+    let mut app = OnitamaApp {
+        gfx_state: None,
+        game_board: None,
+        game_graphics: None,
+    };
 
     event_loop.run_app(&mut app).unwrap();
 }

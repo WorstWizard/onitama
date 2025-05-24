@@ -16,6 +16,8 @@ struct Texture {
     _view: wgpu::TextureView,
     bind_group: wgpu::BindGroup,
 }
+
+/// Handle (id) of a created texture; can be copied and passed around
 #[derive(Clone, Copy)]
 pub struct TexHandle(usize, u32, u32);
 impl TexHandle {
@@ -167,7 +169,7 @@ impl SimpleRenderer {
         }
     }
 
-    /// Creates texture on GPU from provided RGBA8 image, returns 'handle' to be used for drawing later
+    /// Creates texture on GPU from provided RGBA8 image, returns handle to be used for drawing later
     pub fn make_texture(&mut self, image: image::DynamicImage) -> TexHandle {
         let texture_extent = wgpu::Extent3d {
             width: image.width(),

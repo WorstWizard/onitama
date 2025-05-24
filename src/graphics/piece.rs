@@ -33,14 +33,13 @@ impl GraphicPiece {
     }
 }
 
-pub struct PieceGraphicsManager<'board> {
-    graphic_board: &'board GraphicBoard,
+pub struct PieceGraphicsManager {
     piece_graphics: [Option<GraphicPiece>; 25],
     selected_index: Option<usize>,
 }
-impl<'board> PieceGraphicsManager<'board> {
+impl PieceGraphicsManager {
     pub fn new(
-        graphic_board: &'board GraphicBoard,
+        graphic_board: &GraphicBoard,
         game_board: &Board,
         disciple_tex: TexHandle,
         sensei_tex: TexHandle,
@@ -67,7 +66,6 @@ impl<'board> PieceGraphicsManager<'board> {
             }
         }
         PieceGraphicsManager {
-            graphic_board,
             piece_graphics,
             selected_index: None,
         }
@@ -105,12 +103,12 @@ impl<'board> PieceGraphicsManager<'board> {
     /// Moves a piece from one board position to another, deleting a piece if one is already present
     /// Unselects any held piece
     /// Does not check whether the move is legal, or the move is on top of itself
-    pub fn make_move(&mut self, from: Pos, to: Pos) {
+    pub fn make_move(&mut self, graphic_board: &GraphicBoard, from: Pos, to: Pos) {
         self.unselect();
         self.remove_at_pos(to);
         self.piece_graphics[to.to_index()] = self.piece_graphics[from.to_index()].take();
         // self.piece_graphics[from.to_index()] = None;
-        let to_corner = self.graphic_board.tile_corners()[to.to_index()];
+        let to_corner = graphic_board.tile_corners()[to.to_index()];
         let piece_mut = self.piece_graphics[to.to_index()].as_mut().unwrap();
         piece_mut.board_pos = to;
         piece_mut.rect.origin = to_corner;
