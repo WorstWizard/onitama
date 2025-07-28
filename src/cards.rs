@@ -1,4 +1,4 @@
-#![allow(clippy::double_neg)]
+#![allow(double_negations)]
 use crate::game::Pos;
 use tinyrand::{Rand, RandRange, Seeded, StdRand};
 use tinyrand_std::ClockSeed;

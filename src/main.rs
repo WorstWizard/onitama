@@ -173,6 +173,25 @@ struct OnitamaApp<'a> {
     gfx_state: Option<GFXState<'a>>,
     game_board: Option<Board>,
     game_graphics: Option<GameGraphics>,
+    inputs: Inputs,
+}
+impl OnitamaApp<'_> {
+    fn handle_mouse_input(&mut self, event: winit::event::WindowEvent) {
+        match event {
+            winit::event::WindowEvent::MouseInput { device_id: _, state, button } => {
+                if button == winit::event::MouseButton::Left { self.inputs.mouse_pressed = state.is_pressed() }
+                if self.inputs.mouse_pressed {
+                    println!("mouse pressed");
+                } else {
+                    println!("mouse unpressed");
+                }
+            },
+            winit::event::WindowEvent::CursorMoved { device_id: _, position } => {
+                self.inputs.mouse_pos = position.into();
+            },
+            _ => panic!("received unhandled event type")
+        }
+    }
 }
 impl ApplicationHandler for OnitamaApp<'_> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
@@ -214,6 +233,11 @@ impl ApplicationHandler for OnitamaApp<'_> {
                 is_synthetic: _,
             } => {
                 event_loop.exit();
+            },
+            event @ (
+                winit::event::WindowEvent::CursorMoved { device_id: _, position: _ }
+                | winit::event::WindowEvent::MouseInput {button: _, device_id: _, state: _}) => {
+                self.handle_mouse_input(event);
             }
             winit::event::WindowEvent::RedrawRequested => {
                 match self.gfx_state.as_mut().unwrap().render(
@@ -247,6 +271,12 @@ fn main() {
         gfx_state: None,
         game_board: None,
         game_graphics: None,
+        inputs: Inputs {
+            mouse_pressed: false,
+            // mouse_just_pressed: false,
+            // mouse_just_released: false,
+            mouse_pos: (0, 0),
+        },
     };
 
     event_loop.run_app(&mut app).unwrap();
@@ -303,13 +333,7 @@ fn main() {
 // // AI
 // let blue_ai = onitama::ai::MinMax::new(AI_MAX_DEPTH);
 
-// // Inputs
-// let mut inputs = Inputs {
-//     mouse_pressed: false,
-//     mouse_just_pressed: false,
-//     mouse_just_released: false,
-//     mouse_pos: (0, 0),
-// };
+
 
 // // Start event loop
 // let mut fps_manager = FPSManager::new(FRAMERATE);
@@ -483,12 +507,12 @@ fn main() {
 //     }
 // }
 
-// struct Inputs {
-//     pub mouse_pressed: bool,
-//     pub mouse_just_pressed: bool,
-//     pub mouse_just_released: bool,
-//     pub mouse_pos: (i32, i32),
-// }
+struct Inputs {
+    pub mouse_pressed: bool,
+    // pub mouse_just_pressed: bool,
+    // pub mouse_just_released: bool,
+    pub mouse_pos: (i32, i32),
+}
 
 // struct FPSManager {
 //     timer: std::time::Instant,
