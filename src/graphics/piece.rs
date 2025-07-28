@@ -80,7 +80,7 @@ impl PieceGraphicsManager {
             self.selected_index = None
         }
     }
-    pub fn selected_piece(&mut self) -> Option<&GraphicPiece> {
+    pub fn selected_piece(&self) -> Option<&GraphicPiece> {
         if let Some(i) = self.selected_index {
             return self.piece_graphics[i].as_ref();
         }
@@ -96,8 +96,9 @@ impl PieceGraphicsManager {
         for piece in self.piece_graphics.iter().flatten() {
             piece.draw(renderer)
         }
-        if let Some(i) = self.selected_index {
-            self.piece_graphics[i].as_ref().unwrap().draw(renderer)
+        // Draw again to ensure the selected piece is on top
+        if let Some(piece) = self.selected_piece() {
+            piece.draw(renderer)
         }
     }
     /// Moves a piece from one board position to another, deleting a piece if one is already present

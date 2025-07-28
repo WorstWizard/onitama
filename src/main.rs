@@ -189,19 +189,31 @@ impl OnitamaApp<'_> {
             },
             winit::event::WindowEvent::CursorMoved { device_id: _, position } => {
                 self.inputs.mouse_pos = vec2(position.x as f32, position.y as f32);
+                self.mouse_moved(self.inputs.mouse_pos);
             },
             _ => panic!("received unhandled event type")
         }
         
     }
+    fn mouse_moved(&mut self, pos: Vec2) {
+        let gfx = self.game_graphics.as_mut().unwrap();
+        if let Some(piece) = gfx.pieces.selected_piece_mut() {
+            piece.rect.origin = pos;
+            self.redraw_window();
+        }
+    }
     fn mouse_pressed(&mut self) {
         let gfx = self.game_graphics.as_mut().unwrap();
         let board = self.game_board.as_ref().unwrap();
         gfx.cards.select_by_click(self.inputs.mouse_pos, board.red_to_move());
+        if let Some(pos) = gfx.board.window_to_board_pos(self.inputs.mouse_pos) {
+            gfx.pieces.select_at_pos(pos);
+        }
         self.redraw_window();
     }
     fn mouse_released(&mut self) {
-        //
+        let gfx = self.game_graphics.as_mut().unwrap();
+        gfx.pieces.unselect();
     }
     fn redraw_window(&self) {
         self.gfx_state.as_ref().unwrap().window.request_redraw();
