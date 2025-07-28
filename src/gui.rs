@@ -13,9 +13,9 @@ use crate::{
 
 const PREF_RATIO: f32 = 12.0 / 8.0;
 pub struct GameGraphics {
-    board: GraphicBoard,
-    cards: CardGraphicManager,
-    pieces: PieceGraphicsManager,
+    pub board: GraphicBoard,
+    pub cards: CardGraphicManager,
+    pub pieces: PieceGraphicsManager,
 }
 impl GameGraphics {
     pub fn new(

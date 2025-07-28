@@ -180,17 +180,31 @@ impl OnitamaApp<'_> {
         match event {
             winit::event::WindowEvent::MouseInput { device_id: _, state, button } => {
                 if button == winit::event::MouseButton::Left { self.inputs.mouse_pressed = state.is_pressed() }
+                // Event is run just once when the button state changes
                 if self.inputs.mouse_pressed {
-                    println!("mouse pressed");
+                    self.mouse_pressed();
                 } else {
-                    println!("mouse unpressed");
+                    self.mouse_released();
                 }
             },
             winit::event::WindowEvent::CursorMoved { device_id: _, position } => {
-                self.inputs.mouse_pos = position.into();
+                self.inputs.mouse_pos = vec2(position.x as f32, position.y as f32);
             },
             _ => panic!("received unhandled event type")
         }
+        
+    }
+    fn mouse_pressed(&mut self) {
+        let gfx = self.game_graphics.as_mut().unwrap();
+        let board = self.game_board.as_ref().unwrap();
+        gfx.cards.select_by_click(self.inputs.mouse_pos, board.red_to_move());
+        self.redraw_window();
+    }
+    fn mouse_released(&mut self) {
+        //
+    }
+    fn redraw_window(&self) {
+        self.gfx_state.as_ref().unwrap().window.request_redraw();
     }
 }
 impl ApplicationHandler for OnitamaApp<'_> {
@@ -275,41 +289,12 @@ fn main() {
             mouse_pressed: false,
             // mouse_just_pressed: false,
             // mouse_just_released: false,
-            mouse_pos: (0, 0),
+            mouse_pos: vec2(0.0, 0.0),
         },
     };
 
     event_loop.run_app(&mut app).unwrap();
 }
-
-// mixer::open_audio(
-//     mixer::DEFAULT_FREQUENCY,
-//     mixer::DEFAULT_FORMAT,
-//     mixer::DEFAULT_CHANNELS,
-//     1024,
-// )
-// .unwrap();
-// let audio_loader = sdl2::rwops::RWops::from_file("assets/tap_sound.wav", "r").unwrap();
-// let tap_sound = audio_loader.load_wav().unwrap();
-
-// let play_tap = || {
-//     mixer::Channel::all().play(&tap_sound, 0).unwrap();
-// };
-
-// let window = video_subsystem
-//     .window("Onitama", WIDTH, HEIGHT)
-//     .position_centered()
-//     .build()
-//     .unwrap();
-
-// let mut canvas = window.into_canvas().build().unwrap();
-// canvas.set_draw_color(Color::BLACK);
-// canvas.clear();
-// canvas.present();
-
-// // Load textures for the pieces
-// let tex_creator = canvas.texture_creator();
-// let piece_textures = PieceTextures::init(&tex_creator);
 
 // // Make game board, set up graphics
 // let mut game_board = Board::random_cards();
@@ -332,49 +317,6 @@ fn main() {
 
 // // AI
 // let blue_ai = onitama::ai::MinMax::new(AI_MAX_DEPTH);
-
-
-
-// // Start event loop
-// let mut fps_manager = FPSManager::new(FRAMERATE);
-// let mut event_pump = sdl_ctx.event_pump().unwrap();
-// 'main: loop {
-//     canvas.set_draw_color(Color::BLACK);
-//     canvas.clear();
-
-//     // Manage inputs
-//     inputs.mouse_just_pressed = false;
-//     inputs.mouse_just_released = false;
-//     for event in event_pump.poll_iter() {
-//         match event {
-//             Event::Quit { .. }
-//             | Event::KeyDown {
-//                 keycode: Some(Keycode::Escape),
-//                 ..
-//             } => break 'main,
-//             Event::MouseButtonDown {
-//                 mouse_btn: MouseButton::Left,
-//                 x,
-//                 y,
-//                 ..
-//             } => {
-//                 inputs.mouse_pressed = true;
-//                 inputs.mouse_just_pressed = true;
-//                 inputs.mouse_pos = (x, y);
-//             }
-//             Event::MouseButtonUp {
-//                 mouse_btn: MouseButton::Left,
-//                 ..
-//             } => {
-//                 inputs.mouse_pressed = false;
-//                 inputs.mouse_just_released = true;
-//             }
-//             Event::MouseMotion { x, y, .. } => {
-//                 inputs.mouse_pos = (x, y);
-//             }
-//             _ => (),
-//         }
-//     }
 
 //     if move_animator
 //         .as_ref()
@@ -511,7 +453,7 @@ struct Inputs {
     pub mouse_pressed: bool,
     // pub mouse_just_pressed: bool,
     // pub mouse_just_released: bool,
-    pub mouse_pos: (i32, i32),
+    pub mouse_pos: Vec2,
 }
 
 // struct FPSManager {

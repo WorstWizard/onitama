@@ -162,7 +162,7 @@ impl CardGraphicManager {
         self.blue_cards.0.draw(renderer, false, false);
         self.blue_cards.1.draw(renderer, false, false);
         self.transfer_card.draw(renderer, red_to_move, false);
-        if let Some(card) = &self.selected_card {
+        if let Some(card) = self.selected_card() {
             card.draw(renderer, red_to_move, true);
         }
     }

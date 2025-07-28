@@ -11,7 +11,8 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(
-    in: VertexInput
+    in: VertexInput,
+    @builtin(vertex_index) index: u32
 ) -> VertexOutput {
     var out: VertexOutput;
     out.clip_position = vec4<f32>(in.pos, 0.0, 1.0);
