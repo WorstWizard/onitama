@@ -323,26 +323,20 @@ impl SimpleRenderer {
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..buffer_offset));
 
         // Consume draw commands
-        let mut n1 = 0;
-        let mut n2 = 0;
         for cmd in self.draw_commands.drain(..) {
             match cmd {
                 DrawCMD::Fill(range) => {
                     render_pass.set_pipeline(&self.colored_pipeline);
                     render_pass.draw(range, 0..1);
-                    n1 += 1;
                 }
                 DrawCMD::Textured(range, texture_handle) => {
                     let tex = &self.textures[texture_handle.0];
                     render_pass.set_pipeline(&self.textured_pipeline);
                     render_pass.set_bind_group(0, &tex.bind_group, &[]);
                     render_pass.draw(range, 0..1);
-                    n2 += 1;
                 }
             }
         }
-        println!("{n1} rect draw calls");
-        println!("{n2} sprite draw calls");
         self.vertex_queue.clear();
     }
 
