@@ -274,7 +274,16 @@ impl SimpleRenderer {
         let a = self.vertex_queue.len() as u32;
         self.vertex_queue.extend(self.quad_vertices(rect, color));
         let b = self.vertex_queue.len() as u32;
-        self.draw_commands.push(DrawCMD::Fill(a..b));
+        let new_cmd = DrawCMD::Fill(a..b);
+
+        // Try extending previous command, push new if not possible
+        if !self
+            .draw_commands
+            .last_mut()
+            .is_some_and(|cmd| cmd.try_extending(&new_cmd))
+        {
+            self.draw_commands.push(new_cmd);
+        }
     }
 
     /// Rectangle specified in window coordinates.
@@ -289,8 +298,16 @@ impl SimpleRenderer {
         self.vertex_queue
             .extend(self.quad_vertices(rect, modulate_color));
         let b = self.vertex_queue.len() as u32;
-        self.draw_commands
-            .push(DrawCMD::Textured(a..b, texture_handle));
+        let new_cmd = DrawCMD::Textured(a..b, texture_handle);
+
+        // Try extending previous command, push new if not possible
+        if !self
+            .draw_commands
+            .last_mut()
+            .is_some_and(|cmd| cmd.try_extending(&new_cmd))
+        {
+            self.draw_commands.push(new_cmd);
+        }
     }
 
     pub fn render(&mut self, queue: &wgpu::Queue, render_pass: &mut wgpu::RenderPass) {
@@ -355,4 +372,24 @@ enum DrawCMD {
     Fill(Range<u32>),
     /// Vertex range in buffer and texture handle
     Textured(Range<u32>, TexHandle),
+}
+impl DrawCMD {
+    /// If both commands are identical, extends the index range to cover both ranges
+    /// Does *NOT* check whether the two ranges are contiguous, so should only be used for sequential pairs of commands
+    /// Returns `true` if succesful
+    pub fn try_extending(&mut self, other_cmd: &Self) -> bool {
+        match (self, other_cmd) {
+            (Self::Fill(range_a), Self::Fill(range_b)) => {
+                range_a.end = range_b.end;
+                true
+            }
+            (Self::Textured(range_a, tex_a), Self::Textured(range_b, tex_b))
+                if tex_a.0 == tex_b.0 =>
+            {
+                range_a.end = range_b.end;
+                true
+            }
+            _ => false,
+        }
+    }
 }
