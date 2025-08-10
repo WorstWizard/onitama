@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use glam::vec2;
 use glam::Vec2;
+use glam::vec2;
 use onitama::game::Board;
+use onitama::graphics::Rect;
 use onitama::graphics::renderer::SimpleRenderer;
 use onitama::graphics::renderer::TexHandle;
-use onitama::graphics::Rect;
 use onitama::gui::GameGraphics;
 // use onitama::ai::AIOpponent;
 // use onitama::game::*;
@@ -178,22 +178,30 @@ struct OnitamaApp<'a> {
 impl OnitamaApp<'_> {
     fn handle_mouse_input(&mut self, event: winit::event::WindowEvent) {
         match event {
-            winit::event::WindowEvent::MouseInput { device_id: _, state, button } => {
-                if button == winit::event::MouseButton::Left { self.inputs.mouse_pressed = state.is_pressed() }
+            winit::event::WindowEvent::MouseInput {
+                device_id: _,
+                state,
+                button,
+            } => {
+                if button == winit::event::MouseButton::Left {
+                    self.inputs.mouse_pressed = state.is_pressed()
+                }
                 // Event is run just once when the button state changes
                 if self.inputs.mouse_pressed {
                     self.mouse_pressed();
                 } else {
                     self.mouse_released();
                 }
-            },
-            winit::event::WindowEvent::CursorMoved { device_id: _, position } => {
+            }
+            winit::event::WindowEvent::CursorMoved {
+                device_id: _,
+                position,
+            } => {
                 self.inputs.mouse_pos = vec2(position.x as f32, position.y as f32);
                 self.mouse_moved(self.inputs.mouse_pos);
-            },
-            _ => panic!("received unhandled event type")
+            }
+            _ => panic!("received unhandled event type"),
         }
-        
     }
     fn mouse_moved(&mut self, pos: Vec2) {
         let gfx = self.game_graphics.as_mut().unwrap();
@@ -205,7 +213,8 @@ impl OnitamaApp<'_> {
     fn mouse_pressed(&mut self) {
         let gfx = self.game_graphics.as_mut().unwrap();
         let board = self.game_board.as_ref().unwrap();
-        gfx.cards.select_by_click(self.inputs.mouse_pos, board.red_to_move());
+        gfx.cards
+            .select_by_click(self.inputs.mouse_pos, board.red_to_move());
         if let Some(pos) = gfx.board.window_to_board_pos(self.inputs.mouse_pos) {
             gfx.pieces.select_at_pos(pos);
         }
@@ -259,10 +268,16 @@ impl ApplicationHandler for OnitamaApp<'_> {
                 is_synthetic: _,
             } => {
                 event_loop.exit();
-            },
-            event @ (
-                winit::event::WindowEvent::CursorMoved { device_id: _, position: _ }
-                | winit::event::WindowEvent::MouseInput {button: _, device_id: _, state: _}) => {
+            }
+            event @ (winit::event::WindowEvent::CursorMoved {
+                device_id: _,
+                position: _,
+            }
+            | winit::event::WindowEvent::MouseInput {
+                button: _,
+                device_id: _,
+                state: _,
+            }) => {
                 self.handle_mouse_input(event);
             }
             winit::event::WindowEvent::RedrawRequested => {

@@ -1,9 +1,9 @@
-use glam::{vec2, Vec2};
+use glam::{Vec2, vec2};
 
+use super::Rect;
 use super::board::GraphicBoard;
 use super::colors;
 use super::renderer::*;
-use super::Rect;
 use crate::game::{Board, Piece, Pos};
 
 /// Tracks and draws an individual piece

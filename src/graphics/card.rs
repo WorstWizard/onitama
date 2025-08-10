@@ -1,4 +1,4 @@
-use glam::{vec2, Vec2};
+use glam::{Vec2, vec2};
 
 use super::colors;
 use super::renderer::SimpleRenderer;

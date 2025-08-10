@@ -3,11 +3,11 @@ use glam::vec2;
 use crate::{
     game::Board,
     graphics::{
+        Rect,
         board::GraphicBoard,
         card::CardGraphicManager,
         piece::PieceGraphicsManager,
         renderer::{SimpleRenderer, TexHandle},
-        Rect,
     },
 };
 

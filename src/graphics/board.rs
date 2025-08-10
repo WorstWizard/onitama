@@ -1,8 +1,8 @@
-use glam::{vec2, Vec2};
+use glam::{Vec2, vec2};
 
+use super::Rect;
 use super::colors;
 use super::renderer::SimpleRenderer;
-use super::Rect;
 use crate::game::Pos;
 
 /// Draws board and provides offsets for individual tiles
