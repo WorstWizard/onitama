@@ -1,6 +1,6 @@
 use super::{Color, Rect};
 use glam::{vec2, Vec2};
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
 #[repr(C)]
@@ -39,6 +39,7 @@ pub struct SimpleRenderer {
     textures: Vec<Texture>,
     texture_sampler: wgpu::Sampler,
     texture_bind_group_layout: wgpu::BindGroupLayout,
+    draw_commands: Vec<DrawCMD>
 }
 impl SimpleRenderer {
     pub fn new(
@@ -166,6 +167,7 @@ impl SimpleRenderer {
             texture_bind_group_layout,
             colored_pipeline,
             colored_vert_queue: vec![],
+            draw_commands: vec![]
         }
     }
 
@@ -268,7 +270,24 @@ impl SimpleRenderer {
                 tex: Vec2::default(),
             },
         ];
+        // Update or replace last draw command
+        // match &mut self.last_command {
+        //     Some(DrawCMD::Fill(range)) => {
+        //         range.end += vertices.len();
+        //     },
+        //     Some(_) => {
+        //         self.draw_commands.push(self.last_command.as_ref().unwrap().clone());
+        //     },
+        //     None => {
+        //         let a = self.colored_vert_queue.len();
+        //         let b = a + vertices.len();
+        //         self.last_command = Some(DrawCMD::Fill(a..b));
+        //     }
+        // }
+        let a = self.colored_vert_queue.len() as u32;
         self.colored_vert_queue.extend(vertices);
+        let b = self.colored_vert_queue.len() as u32;
+        self.draw_commands.push(DrawCMD::Fill(a..b));
     }
 
     /// Rectangle specified in window coordinates.
@@ -352,20 +371,39 @@ impl SimpleRenderer {
         // Set buffer
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..buffer_offset));
 
-        // Colored draw
-        if !colored_range.is_empty() {
-            render_pass.set_pipeline(&self.colored_pipeline);
-            render_pass.draw(colored_range, 0..1);
-        }
-        // Textured draw
-        // One draw call per texture
-        for (texture, vert_range) in self.textures.iter().zip(textured_ranges.iter()) {
-            if !vert_range.is_empty() {
-                render_pass.set_pipeline(&self.textured_pipeline);
-                render_pass.set_bind_group(0, &texture.bind_group, &[]);
-                render_pass.draw(vert_range.clone(), 0..1);
+        // // Colored draw
+        // if !colored_range.is_empty() {
+        //     render_pass.set_pipeline(&self.colored_pipeline);
+        //     render_pass.draw(colored_range, 0..1);
+        // }
+        // // Textured draw
+        // // One draw call per texture
+        // for (texture, vert_range) in self.textures.iter().zip(textured_ranges.iter()) {
+        //     if !vert_range.is_empty() {
+        //         render_pass.set_pipeline(&self.textured_pipeline);
+        //         render_pass.set_bind_group(0, &texture.bind_group, &[]);
+        //         render_pass.draw(vert_range.clone(), 0..1);
+        //     }
+        // }
+
+        // Consume draw commands
+        let mut n1 = 0;
+        let mut n2 = 0;
+        for cmd in self.draw_commands.drain(..) {
+            match cmd {
+                DrawCMD::Fill(range) => {
+                    render_pass.set_pipeline(&self.colored_pipeline);
+                    render_pass.draw(range, 0..1);
+                    n1 += 1;
+                },
+                DrawCMD::Textured(range, tex_handle) => {
+                    unimplemented!();
+                    n2 += 1;
+                }
             }
         }
+        println!("drew {n1} rects");
+        println!("drew {n2} sprites");
 
         // Reset
         self.colored_vert_queue.clear();
@@ -392,4 +430,12 @@ impl SimpleRenderer {
             vec.y / height_px as f32 * 2.0,
         )
     }
+}
+
+#[derive(Clone)]
+enum DrawCMD {
+    /// Vertex range in buffer
+    Fill(Range<u32>),
+    /// Vertex range in buffer and texture handle
+    Textured(Range<u32>, TexHandle)
 }
