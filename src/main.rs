@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use glam::Vec2;
 use glam::vec2;
 use onitama::game::Board;
@@ -7,10 +6,6 @@ use onitama::graphics::Rect;
 use onitama::graphics::renderer::SimpleRenderer;
 use onitama::graphics::renderer::TexHandle;
 use onitama::gui::GameGraphics;
-// use onitama::ai::AIOpponent;
-// use onitama::game::*;
-// use onitama::graphics::*;
-// use wgpu::Color;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::ElementState;
@@ -19,14 +14,10 @@ use winit::event_loop::EventLoop;
 use winit::keyboard::KeyCode;
 use winit::keyboard::PhysicalKey;
 use winit::window::Window;
-
 use wgpu::Color;
 
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
-// const FRAMERATE: u64 = 60;
-// const AI_OPPONENT: bool = true;
-// const AI_MAX_DEPTH: u32 = 4;
 
 // Based on
 // https://sotrh.github.io/learn-wgpu/
@@ -223,6 +214,7 @@ impl OnitamaApp<'_> {
     fn mouse_released(&mut self) {
         let gfx = self.game_graphics.as_mut().unwrap();
         gfx.pieces.unselect();
+        self.redraw_window();
     }
     fn redraw_window(&self) {
         self.gfx_state.as_ref().unwrap().window.request_redraw();
@@ -234,9 +226,7 @@ impl ApplicationHandler for OnitamaApp<'_> {
             .create_window(
                 Window::default_attributes()
                     .with_inner_size(LogicalSize::new(WIDTH, HEIGHT))
-                    // .with_active(true)
                     .with_resizable(false)
-                    // .with_visible(true)
                     .with_title("Test"),
             )
             .unwrap();
@@ -314,8 +304,6 @@ fn main() {
         game_graphics: None,
         inputs: Inputs {
             mouse_pressed: false,
-            // mouse_just_pressed: false,
-            // mouse_just_released: false,
             mouse_pos: vec2(0.0, 0.0),
         },
     };
@@ -323,186 +311,7 @@ fn main() {
     event_loop.run_app(&mut app).unwrap();
 }
 
-// // Make game board, set up graphics
-// let mut game_board = Board::random_cards();
-// let graphic_board = GraphicBoard::new(&canvas);
-// let mut piece_graphics =
-//     PieceGraphicsManager::new(&graphic_board, &game_board, &piece_textures);
-// let mut position_highlights = Vec::new();
-// let mut card_graphics = CardGraphicManager::new(
-//     &game_board,
-//     Rect::new(
-//         graphic_board.board_width() as i32,
-//         0,
-//         WIDTH - graphic_board.board_width(),
-//         HEIGHT,
-//     ),
-// );
-
-// // Animator for sliding pieces
-// let mut move_animator: Option<MoveAnimator> = None;
-
-// // AI
-// let blue_ai = onitama::ai::MinMax::new(AI_MAX_DEPTH);
-
-//     if move_animator
-//         .as_ref()
-//         .is_some_and(|animator| animator.animating())
-//     {
-//         let delta_time = fps_manager.time_per_frame();
-//         let finished_animation = move_animator.as_mut().unwrap().animate(
-//             piece_graphics.selected_piece_mut().unwrap(),
-//             delta_time.as_secs_f32(),
-//         );
-//         if finished_animation {
-//             piece_graphics.unselect();
-//             card_graphics.swap_cards();
-//             play_tap();
-//         }
-//     } else if !AI_OPPONENT || game_board.red_to_move() {
-//         fn return_piece(
-//             graphic_board: &GraphicBoard,
-//             piece_graphics: &mut PieceGraphicsManager,
-//             old_pos: Pos,
-//         ) {
-//             let prev_index = old_pos.to_index();
-//             let corner = graphic_board.tile_corners()[prev_index];
-//             let piece_mut = piece_graphics.selected_piece_mut().unwrap();
-//             piece_mut.x = corner.0;
-//             piece_mut.y = corner.1;
-//             piece_graphics.unselect();
-//         }
-
-//         if inputs.mouse_just_released
-//             && piece_graphics.selected_piece().is_some()
-//             && graphic_board
-//                 .window_to_board_pos(inputs.mouse_pos)
-//                 .is_some()
-//         {
-//             position_highlights.clear();
-//             let new_pos = graphic_board.window_to_board_pos(inputs.mouse_pos).unwrap();
-//             let old_pos = piece_graphics.selected_piece().unwrap().board_pos;
-//             // Shouldn't be possible to have no selected card if there's a selected piece, but checking anyway for good measure
-//             if old_pos != new_pos && card_graphics.selected_card().is_some() {
-//                 // Attempt to make move
-//                 let move_result = game_board.make_move(
-//                     card_graphics.selected_card().unwrap().card(),
-//                     old_pos,
-//                     new_pos,
-//                 );
-//                 if move_result.is_some() {
-//                     // If the move was legal, the move was made, update graphics
-//                     piece_graphics.make_move(&graphic_board, old_pos, new_pos);
-//                     piece_graphics.unselect();
-//                     card_graphics.swap_cards();
-//                     card_graphics.unselect();
-//                     play_tap();
-//                 } else {
-//                     // If the move is illegal, put the piece back
-//                     return_piece(&graphic_board, &mut piece_graphics, old_pos)
-//                 }
-//             } else {
-//                 return_piece(&graphic_board, &mut piece_graphics, old_pos)
-//             }
-
-//         // Mouse just clicked, pick up piece to move or select card
-//         } else if inputs.mouse_just_pressed {
-//             if let Some(pos) = graphic_board.window_to_board_pos(inputs.mouse_pos) {
-//                 let piece = game_board.squares()[pos.to_index()];
-//                 if piece.is_some_and(|piece| piece.is_red() == game_board.red_to_move())
-//                     && card_graphics.selected_card().is_some()
-//                 {
-//                     piece_graphics.select_at_pos(pos);
-//                     let selected_card = card_graphics.selected_card().unwrap().card();
-//                     let legal_moves = game_board.legal_moves_from_pos(pos);
-//                     let end_positions = legal_moves.iter().filter_map(|mov| {
-//                         (mov.used_card == selected_card).then_some(mov.end_pos)
-//                     });
-//                     position_highlights.extend(end_positions);
-//                 }
-//             } else {
-//                 card_graphics.select_by_click(inputs.mouse_pos, game_board.red_to_move())
-//             }
-//         }
-
-//         // If piece is held, move it under cursor
-//         if let Some(piece) = piece_graphics.selected_piece_mut() {
-//             piece.x = inputs.mouse_pos.0 - (piece.width / 2) as i32;
-//             piece.y = inputs.mouse_pos.1 - (piece.height / 2) as i32;
-//         }
-//     } else if AI_OPPONENT {
-//         // AI Takes turn
-//         let ai_move = blue_ai.suggest_move(game_board.clone(), false);
-
-//         game_board.make_move(ai_move.used_card, ai_move.start_pos, ai_move.end_pos);
-//         card_graphics.select_card(ai_move.used_card); // Select card now, swap after animation finishes
-//         piece_graphics.make_move(&graphic_board, ai_move.start_pos, ai_move.end_pos);
-
-//         // Piece animation
-//         let from_corner = graphic_board.tile_corners()[ai_move.start_pos.to_index()];
-//         let to_corner = graphic_board.tile_corners()[ai_move.end_pos.to_index()];
-//         let mut animator = MoveAnimator::new(from_corner, to_corner);
-//         piece_graphics.select_at_pos(ai_move.end_pos); // Select the piece so it can be referenced by the animator
-//         animator.animate(piece_graphics.selected_piece_mut().unwrap(), 0.001);
-//         move_animator = Some(animator);
-//     }
-
-//     // Draw screen
-//     graphic_board.draw_board(&mut canvas);
-//     graphic_board.highlight_tiles(&mut canvas, &position_highlights);
-//     piece_graphics.draw(&mut canvas);
-//     card_graphics.draw(&mut canvas, game_board.red_to_move());
-
-//     canvas.present();
-//     fps_manager.delay_frame();
-
-//     if !move_animator
-//         .as_ref()
-//         .is_some_and(|animator| animator.animating())
-//     {
-//         match game_board.winner() {
-//             Some(true) => {
-//                 std::thread::sleep(std::time::Duration::from_secs(1));
-//                 println!("Red wins!");
-//                 break;
-//             }
-//             Some(false) => {
-//                 std::thread::sleep(std::time::Duration::from_secs(1));
-//                 println!("Blue wins!");
-//                 break;
-//             }
-//             None => (),
-//         }
-//     }
-// }
-
 struct Inputs {
     pub mouse_pressed: bool,
-    // pub mouse_just_pressed: bool,
-    // pub mouse_just_released: bool,
     pub mouse_pos: Vec2,
 }
-
-// struct FPSManager {
-//     timer: std::time::Instant,
-//     target_duration_per_frame: std::time::Duration,
-// }
-// impl FPSManager {
-//     pub fn new(target_framerate: u64) -> Self {
-//         FPSManager {
-//             timer: std::time::Instant::now(),
-//             target_duration_per_frame: std::time::Duration::from_millis(1000 / target_framerate),
-//         }
-//     }
-//     pub fn delay_frame(&mut self) {
-//         let since_last_frame = self.timer.elapsed();
-//         self.timer = std::time::Instant::now();
-//         let sleep_time = self
-//             .target_duration_per_frame
-//             .saturating_sub(since_last_frame);
-//         std::thread::sleep(sleep_time)
-//     }
-//     pub fn time_per_frame(&self) -> std::time::Duration {
-//         self.target_duration_per_frame
-//     }
-// }
