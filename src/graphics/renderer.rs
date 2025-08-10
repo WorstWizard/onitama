@@ -1,5 +1,5 @@
 use super::{Color, Rect};
-use glam::{vec2, Vec2};
+use glam::{Vec2, vec2};
 use std::{ops::Range, sync::Arc};
 
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
@@ -30,16 +30,15 @@ const VERT_BUFFER_SIZE: u64 = 1 << 20; // 1MiB, hardcoded, should be complete ov
 pub struct SimpleRenderer {
     device: Arc<wgpu::Device>,
     queue: Arc<wgpu::Queue>,
-    vertex_buffer: Arc<wgpu::Buffer>,
     surface_config: Arc<wgpu::SurfaceConfiguration>,
+    vertex_buffer: Arc<wgpu::Buffer>,
+    vertex_queue: Vec<Vertex>,
     colored_pipeline: wgpu::RenderPipeline,
-    colored_vert_queue: Vec<Vertex>,
     textured_pipeline: wgpu::RenderPipeline,
-    textured_vert_queues: Vec<Vec<Vertex>>,
     textures: Vec<Texture>,
     texture_sampler: wgpu::Sampler,
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    draw_commands: Vec<DrawCMD>
+    draw_commands: Vec<DrawCMD>,
 }
 impl SimpleRenderer {
     pub fn new(
@@ -160,14 +159,13 @@ impl SimpleRenderer {
             queue,
             surface_config,
             vertex_buffer,
+            vertex_queue: vec![],
             textured_pipeline,
             textures: vec![],
-            textured_vert_queues: vec![],
             texture_sampler,
             texture_bind_group_layout,
             colored_pipeline,
-            colored_vert_queue: vec![],
-            draw_commands: vec![]
+            draw_commands: vec![],
         }
     }
 
@@ -224,7 +222,6 @@ impl SimpleRenderer {
             _view: view,
             bind_group,
         });
-        self.textured_vert_queues.push(vec![]);
 
         TexHandle(
             self.textures.len() - 1,
@@ -233,60 +230,50 @@ impl SimpleRenderer {
         )
     }
 
-    /// Rectangle specified in window coordinates.
-    /// Origin is taken as the top-left corner of the rectangle.
-    pub fn draw_filled_rect(&mut self, rect: Rect, color: Color) {
+    fn quad_vertices(&self, rect: Rect, modulate_color: Color) -> [Vertex; 6] {
         let pos = self.window_to_clip_pos(rect.origin);
         let (width, height) = self.window_to_clip_scale(rect.size).into();
-        let vertices = [
+        let col = modulate_color;
+        [
             Vertex {
                 pos,
-                col: color,
-                tex: Vec2::default(),
+                col,
+                tex: vec2(0.0, 0.0),
             },
             Vertex {
                 pos: pos + vec2(width, 0.0),
-                col: color,
-                tex: Vec2::default(),
+                col,
+                tex: vec2(1.0, 0.0),
             },
             Vertex {
                 pos: pos + vec2(0.0, -height),
-                col: color,
-                tex: Vec2::default(),
+                col,
+                tex: vec2(0.0, 1.0),
             },
             Vertex {
                 pos: pos + vec2(0.0, -height),
-                col: color,
-                tex: Vec2::default(),
+                col,
+                tex: vec2(0.0, 1.0),
             },
             Vertex {
                 pos: pos + vec2(width, 0.0),
-                col: color,
-                tex: Vec2::default(),
+                col,
+                tex: vec2(1.0, 0.0),
             },
             Vertex {
                 pos: pos + vec2(width, -height),
-                col: color,
-                tex: Vec2::default(),
+                col,
+                tex: vec2(1.0, 1.0),
             },
-        ];
-        // Update or replace last draw command
-        // match &mut self.last_command {
-        //     Some(DrawCMD::Fill(range)) => {
-        //         range.end += vertices.len();
-        //     },
-        //     Some(_) => {
-        //         self.draw_commands.push(self.last_command.as_ref().unwrap().clone());
-        //     },
-        //     None => {
-        //         let a = self.colored_vert_queue.len();
-        //         let b = a + vertices.len();
-        //         self.last_command = Some(DrawCMD::Fill(a..b));
-        //     }
-        // }
-        let a = self.colored_vert_queue.len() as u32;
-        self.colored_vert_queue.extend(vertices);
-        let b = self.colored_vert_queue.len() as u32;
+        ]
+    }
+
+    /// Rectangle specified in window coordinates.
+    /// Origin is taken as the top-left corner of the rectangle.
+    pub fn draw_filled_rect(&mut self, rect: Rect, color: Color) {
+        let a = self.vertex_queue.len() as u32;
+        self.vertex_queue.extend(self.quad_vertices(rect, color));
+        let b = self.vertex_queue.len() as u32;
         self.draw_commands.push(DrawCMD::Fill(a..b));
     }
 
@@ -298,93 +285,25 @@ impl SimpleRenderer {
         modulate_color: Color,
         texture_handle: TexHandle,
     ) {
-        let pos = self.window_to_clip_pos(rect.origin);
-        let (width, height) = self.window_to_clip_scale(rect.size).into();
-        let vertices = [
-            Vertex {
-                pos,
-                col: modulate_color,
-                tex: vec2(0.0, 0.0),
-            },
-            Vertex {
-                pos: pos + vec2(width, 0.0),
-                col: modulate_color,
-                tex: vec2(1.0, 0.0),
-            },
-            Vertex {
-                pos: pos + vec2(0.0, -height),
-                col: modulate_color,
-                tex: vec2(0.0, 1.0),
-            },
-            Vertex {
-                pos: pos + vec2(0.0, -height),
-                col: modulate_color,
-                tex: vec2(0.0, 1.0),
-            },
-            Vertex {
-                pos: pos + vec2(width, 0.0),
-                col: modulate_color,
-                tex: vec2(1.0, 0.0),
-            },
-            Vertex {
-                pos: pos + vec2(width, -height),
-                col: modulate_color,
-                tex: vec2(1.0, 1.0),
-            },
-        ];
-        self.textured_vert_queues[texture_handle.0].extend(vertices);
+        let a = self.vertex_queue.len() as u32;
+        self.vertex_queue
+            .extend(self.quad_vertices(rect, modulate_color));
+        let b = self.vertex_queue.len() as u32;
+        self.draw_commands
+            .push(DrawCMD::Textured(a..b, texture_handle));
     }
 
     pub fn render(&mut self, queue: &wgpu::Queue, render_pass: &mut wgpu::RenderPass) {
         let mut buffer_offset = 0;
-        let mut vert_offset = 0;
 
-        // Uniform color
-        let mut colored_range = 0..0;
-        if !self.colored_vert_queue.is_empty() {
-            let vertex_bytes = bytemuck::cast_slice(&self.colored_vert_queue);
-            let n_verts = self.colored_vert_queue.len() as u32;
+        // Write vertices to buffer
+        if !self.vertex_queue.is_empty() {
+            let vertex_bytes = bytemuck::cast_slice(&self.vertex_queue);
             let n_bytes = vertex_bytes.len() as u64;
             queue.write_buffer(&self.vertex_buffer, 0, vertex_bytes);
             buffer_offset += n_bytes;
-            vert_offset += n_verts;
-            colored_range = 0..n_verts;
         }
-        // Textures
-        let mut textured_ranges = vec![];
-        if self.textured_vert_queues.iter().any(|vec| !vec.is_empty()) {
-            // Submit all texture verts in one go by flattening, then render slice of the vertex buffer as neccesary
-            let mut flattened_verts: Vec<Vertex> = vec![];
-            for vert_queue in &self.textured_vert_queues {
-                let n_verts = vert_queue.len() as u32;
-                flattened_verts.extend(vert_queue);
-                textured_ranges.push(vert_offset..vert_offset + n_verts);
-                vert_offset += n_verts;
-            }
-
-            // Write all vertices once
-            let vertex_bytes = bytemuck::cast_slice(&flattened_verts);
-            let n_bytes = vertex_bytes.len() as u64;
-            queue.write_buffer(&self.vertex_buffer, buffer_offset, vertex_bytes);
-            buffer_offset += n_bytes;
-        }
-        // Set buffer
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..buffer_offset));
-
-        // // Colored draw
-        // if !colored_range.is_empty() {
-        //     render_pass.set_pipeline(&self.colored_pipeline);
-        //     render_pass.draw(colored_range, 0..1);
-        // }
-        // // Textured draw
-        // // One draw call per texture
-        // for (texture, vert_range) in self.textures.iter().zip(textured_ranges.iter()) {
-        //     if !vert_range.is_empty() {
-        //         render_pass.set_pipeline(&self.textured_pipeline);
-        //         render_pass.set_bind_group(0, &texture.bind_group, &[]);
-        //         render_pass.draw(vert_range.clone(), 0..1);
-        //     }
-        // }
 
         // Consume draw commands
         let mut n1 = 0;
@@ -395,21 +314,19 @@ impl SimpleRenderer {
                     render_pass.set_pipeline(&self.colored_pipeline);
                     render_pass.draw(range, 0..1);
                     n1 += 1;
-                },
-                DrawCMD::Textured(range, tex_handle) => {
-                    unimplemented!();
+                }
+                DrawCMD::Textured(range, texture_handle) => {
+                    let tex = &self.textures[texture_handle.0];
+                    render_pass.set_pipeline(&self.textured_pipeline);
+                    render_pass.set_bind_group(0, &tex.bind_group, &[]);
+                    render_pass.draw(range, 0..1);
                     n2 += 1;
                 }
             }
         }
-        println!("drew {n1} rects");
-        println!("drew {n2} sprites");
-
-        // Reset
-        self.colored_vert_queue.clear();
-        self.textured_vert_queues
-            .iter_mut()
-            .for_each(|vec| vec.clear());
+        println!("{n1} rect draw calls");
+        println!("{n2} sprite draw calls");
+        self.vertex_queue.clear();
     }
 
     pub fn output_size(&self) -> (u32, u32) {
@@ -437,5 +354,5 @@ enum DrawCMD {
     /// Vertex range in buffer
     Fill(Range<u32>),
     /// Vertex range in buffer and texture handle
-    Textured(Range<u32>, TexHandle)
+    Textured(Range<u32>, TexHandle),
 }
