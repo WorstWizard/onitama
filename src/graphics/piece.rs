@@ -36,6 +36,7 @@ impl GraphicPiece {
 pub struct PieceGraphicsManager {
     piece_graphics: [Option<GraphicPiece>; 25],
     selected_index: Option<usize>,
+    selected_original_pos: Vec2,
 }
 impl PieceGraphicsManager {
     pub fn new(
@@ -68,14 +69,16 @@ impl PieceGraphicsManager {
         PieceGraphicsManager {
             piece_graphics,
             selected_index: None,
+            selected_original_pos: Vec2::ZERO
         }
     }
     pub fn remove_at_pos(&mut self, pos: Pos) {
         self.piece_graphics[pos.to_index()] = None;
     }
     pub fn select_at_pos(&mut self, pos: Pos) {
-        if self.piece_graphics[pos.to_index()].is_some() {
-            self.selected_index = Some(pos.to_index())
+        if let Some(piece) = &self.piece_graphics[pos.to_index()] {
+            self.selected_index = Some(pos.to_index());
+            self.selected_original_pos = piece.rect.origin;
         } else {
             self.selected_index = None
         }
@@ -116,6 +119,10 @@ impl PieceGraphicsManager {
     }
 
     pub fn unselect(&mut self) {
+        let original_pos = self.selected_original_pos;
+        if let Some(piece) = self.selected_piece_mut() {
+            piece.rect.origin = original_pos;
+        }
         self.selected_index = None;
     }
 }
