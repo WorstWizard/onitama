@@ -69,19 +69,28 @@ impl PieceGraphicsManager {
         PieceGraphicsManager {
             piece_graphics,
             selected_index: None,
-            selected_original_pos: Vec2::ZERO
+            selected_original_pos: Vec2::ZERO,
+        }
+    }
+    pub fn select_by_click(&mut self, clicked_pos: Vec2, red_to_move: bool) {
+        for (i, graphic_piece) in self
+            .piece_graphics
+            .iter()
+            .enumerate()
+            .filter_map(|(i, opt)| opt.as_ref().map(|p| (i, p)))
+        {
+            if graphic_piece.rect.contains_point(clicked_pos) {
+                if red_to_move == graphic_piece.piece.is_red() {
+                    self.selected_index = Some(i);
+                    self.selected_original_pos = graphic_piece.rect.origin;
+                } else {
+                    return;
+                }
+            }
         }
     }
     pub fn remove_at_pos(&mut self, pos: Pos) {
         self.piece_graphics[pos.to_index()] = None;
-    }
-    pub fn select_at_pos(&mut self, pos: Pos) {
-        if let Some(piece) = &self.piece_graphics[pos.to_index()] {
-            self.selected_index = Some(pos.to_index());
-            self.selected_original_pos = piece.rect.origin;
-        } else {
-            self.selected_index = None
-        }
     }
     pub fn selected_piece(&self) -> Option<&GraphicPiece> {
         if let Some(i) = self.selected_index {

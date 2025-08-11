@@ -1,4 +1,4 @@
-use glam::vec2;
+use glam::{Vec2, vec2};
 
 use crate::{
     game::Board,
@@ -11,6 +11,7 @@ use crate::{
     },
 };
 
+// Shared/static game UI
 const PREF_RATIO: f32 = 12.0 / 8.0;
 pub struct GameGraphics {
     pub board: GraphicBoard,
@@ -48,5 +49,36 @@ impl GameGraphics {
         self.board.draw_board(renderer);
         self.cards.draw(renderer, red_to_move);
         self.pieces.draw(renderer);
+    }
+}
+
+// GUI for the main game
+pub struct OnitamaGame {
+    pub graphics: GameGraphics,
+    pub board: Board,
+}
+impl OnitamaGame {
+    pub fn new(graphics: GameGraphics, board: Board) -> Self {
+        OnitamaGame { graphics, board }
+    }
+    pub fn handle_mouse_input(&mut self, pressed: bool, pos: Vec2) {
+        // If a piece is held
+        if let Some(piece) = self.graphics.pieces.selected_piece_mut() {
+            // Piece released
+            if !pressed {
+                self.graphics.pieces.unselect();
+            } else {
+                piece.rect.origin = pos - piece.rect.size * 0.5;
+            }
+        } else if pressed {
+            // Piece clicked
+            self.graphics
+                .pieces
+                .select_by_click(pos, self.board.red_to_move());
+            // Card clicked
+            self.graphics
+                .cards
+                .select_by_click(pos, self.board.red_to_move());
+        }
     }
 }

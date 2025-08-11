@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use glam::Vec2;
 use glam::vec2;
 use onitama::game::Board;
@@ -6,6 +5,9 @@ use onitama::graphics::Rect;
 use onitama::graphics::renderer::SimpleRenderer;
 use onitama::graphics::renderer::TexHandle;
 use onitama::gui::GameGraphics;
+use onitama::gui::OnitamaGame;
+use std::sync::Arc;
+use wgpu::Color;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::ElementState;
@@ -14,7 +16,6 @@ use winit::event_loop::EventLoop;
 use winit::keyboard::KeyCode;
 use winit::keyboard::PhysicalKey;
 use winit::window::Window;
-use wgpu::Color;
 
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
@@ -143,9 +144,7 @@ impl<'a> GFXState<'a> {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
+                ..Default::default()
             });
 
             game_graphics.draw(&mut self.renderer, red_to_move);
@@ -160,84 +159,36 @@ impl<'a> GFXState<'a> {
     }
 }
 
-struct OnitamaApp<'a> {
+struct Inputs {
+    pub mouse_pressed: bool,
+    pub mouse_pos: Vec2,
+}
+
+struct Application<'a> {
     gfx_state: Option<GFXState<'a>>,
-    game_board: Option<Board>,
-    game_graphics: Option<GameGraphics>,
+    game: Option<OnitamaGame>,
     inputs: Inputs,
 }
-impl OnitamaApp<'_> {
-    fn handle_mouse_input(&mut self, event: winit::event::WindowEvent) {
-        match event {
-            winit::event::WindowEvent::MouseInput {
-                device_id: _,
-                state,
-                button,
-            } => {
-                if button == winit::event::MouseButton::Left {
-                    self.inputs.mouse_pressed = state.is_pressed()
-                }
-                // Event is run just once when the button state changes
-                if self.inputs.mouse_pressed {
-                    self.mouse_pressed();
-                } else {
-                    self.mouse_released();
-                }
-            }
-            winit::event::WindowEvent::CursorMoved {
-                device_id: _,
-                position,
-            } => {
-                self.inputs.mouse_pos = vec2(position.x as f32, position.y as f32);
-                self.mouse_moved(self.inputs.mouse_pos);
-            }
-            _ => panic!("received unhandled event type"),
-        }
-    }
-    fn mouse_moved(&mut self, pos: Vec2) {
-        let gfx = self.game_graphics.as_mut().unwrap();
-        if let Some(piece) = gfx.pieces.selected_piece_mut() {
-            piece.rect.origin = pos;
-            self.redraw_window();
-        }
-    }
-    fn mouse_pressed(&mut self) {
-        let gfx = self.game_graphics.as_mut().unwrap();
-        let board = self.game_board.as_ref().unwrap();
-        gfx.cards
-            .select_by_click(self.inputs.mouse_pos, board.red_to_move());
-        if let Some(pos) = gfx.board.window_to_board_pos(self.inputs.mouse_pos) {
-            gfx.pieces.select_at_pos(pos);
-        }
-        self.redraw_window();
-    }
-    fn mouse_released(&mut self) {
-        let gfx = self.game_graphics.as_mut().unwrap();
-        gfx.pieces.unselect();
-        self.redraw_window();
-    }
-    fn redraw_window(&self) {
-        self.gfx_state.as_ref().unwrap().window.request_redraw();
-    }
-}
-impl ApplicationHandler for OnitamaApp<'_> {
+impl ApplicationHandler for Application<'_> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let window = event_loop
             .create_window(
                 Window::default_attributes()
                     .with_inner_size(LogicalSize::new(WIDTH, HEIGHT))
                     .with_resizable(false)
-                    .with_title("Test"),
+                    .with_title("Onitama"),
             )
             .unwrap();
         self.gfx_state = Some(pollster::block_on(GFXState::new(window)));
-        self.game_board = Some(Board::random_cards());
-        self.game_graphics = Some(GameGraphics::new(
+        let game_board = Board::random_cards();
+        let game_graphics = GameGraphics::new(
             Rect::new(Vec2::ZERO, vec2(WIDTH as f32, HEIGHT as f32)),
-            self.game_board.as_ref().unwrap(),
+            &game_board,
             self.gfx_state.as_ref().unwrap().disciple_tex,
             self.gfx_state.as_ref().unwrap().sensei_tex,
-        ));
+        );
+        let game = OnitamaGame::new(game_graphics, game_board);
+        self.game = Some(game);
     }
     fn window_event(
         &mut self,
@@ -246,6 +197,7 @@ impl ApplicationHandler for OnitamaApp<'_> {
         event: winit::event::WindowEvent,
     ) {
         match event {
+            // Close game on ESCAPE
             winit::event::WindowEvent::CloseRequested
             | winit::event::WindowEvent::KeyboardInput {
                 device_id: _,
@@ -259,21 +211,35 @@ impl ApplicationHandler for OnitamaApp<'_> {
             } => {
                 event_loop.exit();
             }
-            event @ (winit::event::WindowEvent::CursorMoved {
+            // Update mouse inputs and trigger update on game
+            winit::event::WindowEvent::CursorMoved {
                 device_id: _,
-                position: _,
+                position,
+            } => {
+                self.inputs.mouse_pos = vec2(position.x as f32, position.y as f32);
+                self.game
+                    .as_mut()
+                    .unwrap()
+                    .handle_mouse_input(self.inputs.mouse_pressed, self.inputs.mouse_pos);
+                self.redraw_window();
             }
-            | winit::event::WindowEvent::MouseInput {
-                button: _,
+            winit::event::WindowEvent::MouseInput {
+                button,
                 device_id: _,
-                state: _,
-            }) => {
-                self.handle_mouse_input(event);
+                state,
+            } => {
+                self.inputs.mouse_pressed = button == winit::event::MouseButton::Left
+                    && state == winit::event::ElementState::Pressed;
+                self.game
+                    .as_mut()
+                    .unwrap()
+                    .handle_mouse_input(self.inputs.mouse_pressed, self.inputs.mouse_pos);
+                self.redraw_window();
             }
             winit::event::WindowEvent::RedrawRequested => {
                 match self.gfx_state.as_mut().unwrap().render(
-                    self.game_graphics.as_ref().unwrap(),
-                    self.game_board.as_ref().unwrap().red_to_move(),
+                    &self.game.as_ref().unwrap().graphics,
+                    self.game.as_ref().unwrap().board.red_to_move(),
                 ) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
@@ -293,15 +259,19 @@ impl ApplicationHandler for OnitamaApp<'_> {
         }
     }
 }
+impl Application<'_> {
+    fn redraw_window(&self) {
+        self.gfx_state.as_ref().unwrap().window.request_redraw();
+    }
+}
 
 fn main() {
     env_logger::init();
 
     let event_loop = EventLoop::new().unwrap();
-    let mut app = OnitamaApp {
+    let mut app = Application {
         gfx_state: None,
-        game_board: None,
-        game_graphics: None,
+        game: None,
         inputs: Inputs {
             mouse_pressed: false,
             mouse_pos: vec2(0.0, 0.0),
@@ -309,9 +279,4 @@ fn main() {
     };
 
     event_loop.run_app(&mut app).unwrap();
-}
-
-struct Inputs {
-    pub mouse_pressed: bool,
-    pub mouse_pos: Vec2,
 }
