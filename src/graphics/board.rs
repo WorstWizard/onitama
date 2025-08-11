@@ -12,6 +12,7 @@ pub struct GraphicBoard {
     tile_width: f32,
     tiles: [Rect; 25],
     tile_corners: [Vec2; 25],
+    highlight_tiles: Vec<Pos>,
 }
 impl GraphicBoard {
     pub fn new(rect: Rect) -> Self {
@@ -38,6 +39,7 @@ impl GraphicBoard {
             tile_width,
             tiles,
             tile_corners,
+            highlight_tiles: Vec::with_capacity(4),
         }
     }
     pub fn draw_board(&self, renderer: &mut SimpleRenderer) {
@@ -50,6 +52,14 @@ impl GraphicBoard {
                 Rect::new(*pos, Vec2::splat(self.tile_width)),
                 colors::BOARD_TILE,
             )
+        }
+        // Draw highlights
+        for board_pos in self.highlight_tiles.iter() {
+            let pos = self.tile_corners[board_pos.to_index()];
+            renderer.draw_filled_rect(
+                Rect::new(pos, Vec2::splat(self.tile_width)),
+                colors::BOARD_HIGHLIGHT,
+            );
         }
         // Draw temples
         let w = self.tile_width / 3.0;
@@ -71,14 +81,9 @@ impl GraphicBoard {
             colors::BOARD_BLUE_TEMPLE,
         );
     }
-    pub fn highlight_tiles(&self, renderer: &mut SimpleRenderer, positions: &[Pos]) {
-        for pos in positions {
-            let corner_pos = self.tile_corners[pos.to_index()];
-            renderer.draw_filled_rect(
-                Rect::new(corner_pos, Vec2::splat(self.tile_width)),
-                colors::BOARD_HIGHLIGHT,
-            );
-        }
+    pub fn highlight_tiles(&mut self, positions: &[Pos]) {
+        self.highlight_tiles.clear();
+        self.highlight_tiles.extend_from_slice(positions);
     }
     pub fn tile_corners(&self) -> &[Vec2; 25] {
         &self.tile_corners

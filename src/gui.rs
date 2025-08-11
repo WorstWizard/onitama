@@ -66,6 +66,8 @@ impl OnitamaGame {
         if let Some(piece) = self.graphics.pieces.selected_piece_mut() {
             // Piece released
             if !pressed {
+                self.graphics.board.highlight_tiles(&[]);
+
                 // Try to make move
                 if let Some(to_pos) = self.graphics.board.window_to_board_pos(mouse_pos)
                     && let Some(card) = self.graphics.cards.selected_card()
@@ -80,13 +82,12 @@ impl OnitamaGame {
                         self.graphics
                             .pieces
                             .make_move(&self.graphics.board, from_pos, to_pos);
-                        self.graphics
-                            .cards
-                            .swap_cards();
+                        self.graphics.cards.swap_cards();
                     }
                 }
                 self.graphics.pieces.unselect();
             } else {
+                // Piece is held
                 piece.rect.origin = mouse_pos - piece.rect.size * 0.5;
             }
         } else if pressed {
@@ -98,6 +99,25 @@ impl OnitamaGame {
             self.graphics
                 .cards
                 .select_by_click(mouse_pos, self.board.red_to_move());
+            // Update highlights
+            if let Some(piece) = self.graphics.pieces.selected_piece()
+                && let Some(graphic_card) = self.graphics.cards.selected_card()
+            {
+                let start_pos = piece.board_pos;
+                let highlights: Vec<_> = self
+                    .board
+                    .legal_moves_from_pos(start_pos)
+                    .iter()
+                    .filter_map(|game_move| {
+                        if game_move.used_card == graphic_card.card() {
+                            Some(game_move.end_pos)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                self.graphics.board.highlight_tiles(&highlights);
+            }
         }
     }
     pub fn winner(&self) -> Option<bool> {
