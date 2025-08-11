@@ -61,24 +61,46 @@ impl OnitamaGame {
     pub fn new(graphics: GameGraphics, board: Board) -> Self {
         OnitamaGame { graphics, board }
     }
-    pub fn handle_mouse_input(&mut self, pressed: bool, pos: Vec2) {
+    pub fn handle_mouse_input(&mut self, pressed: bool, mouse_pos: Vec2) {
         // If a piece is held
         if let Some(piece) = self.graphics.pieces.selected_piece_mut() {
             // Piece released
             if !pressed {
+                // Try to make move
+                if let Some(to_pos) = self.graphics.board.window_to_board_pos(mouse_pos)
+                    && let Some(card) = self.graphics.cards.selected_card()
+                {
+                    let from_pos = piece.board_pos;
+                    if self
+                        .board
+                        .make_move(card.card(), from_pos, to_pos)
+                        .is_some()
+                    {
+                        // Move was legal
+                        self.graphics
+                            .pieces
+                            .make_move(&self.graphics.board, from_pos, to_pos);
+                        self.graphics
+                            .cards
+                            .swap_cards();
+                    }
+                }
                 self.graphics.pieces.unselect();
             } else {
-                piece.rect.origin = pos - piece.rect.size * 0.5;
+                piece.rect.origin = mouse_pos - piece.rect.size * 0.5;
             }
         } else if pressed {
             // Piece clicked
             self.graphics
                 .pieces
-                .select_by_click(pos, self.board.red_to_move());
+                .select_by_click(mouse_pos, self.board.red_to_move());
             // Card clicked
             self.graphics
                 .cards
-                .select_by_click(pos, self.board.red_to_move());
+                .select_by_click(mouse_pos, self.board.red_to_move());
         }
+    }
+    pub fn winner(&self) -> Option<bool> {
+        self.board.winner()
     }
 }

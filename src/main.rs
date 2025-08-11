@@ -222,6 +222,7 @@ impl ApplicationHandler for Application<'_> {
                     .unwrap()
                     .handle_mouse_input(self.inputs.mouse_pressed, self.inputs.mouse_pos);
                 self.redraw_window();
+                self.game_end(event_loop);
             }
             winit::event::WindowEvent::MouseInput {
                 button,
@@ -235,6 +236,7 @@ impl ApplicationHandler for Application<'_> {
                     .unwrap()
                     .handle_mouse_input(self.inputs.mouse_pressed, self.inputs.mouse_pos);
                 self.redraw_window();
+                self.game_end(event_loop);
             }
             winit::event::WindowEvent::RedrawRequested => {
                 match self.gfx_state.as_mut().unwrap().render(
@@ -262,6 +264,17 @@ impl ApplicationHandler for Application<'_> {
 impl Application<'_> {
     fn redraw_window(&self) {
         self.gfx_state.as_ref().unwrap().window.request_redraw();
+    }
+    fn game_end(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        if let Some(red_won) = self.game.as_ref().unwrap().winner() {
+            if red_won {
+                println!("Red wins!")
+            } else {
+                println!("Blue wins!")
+            }
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            event_loop.exit();
+        }
     }
 }
 
