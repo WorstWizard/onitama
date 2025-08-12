@@ -1,8 +1,15 @@
+use std::fs::File;
+
 use glam::Vec2;
 use glam::vec2;
 use onitama::game::Board;
 use onitama::graphics::{Rect, GFXState};
 use onitama::gui::GameGraphics;
+use rodio::source::Buffered;
+use rodio::Decoder;
+use rodio::OutputStream;
+use rodio::Sink;
+use rodio::Source;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::ElementState;
@@ -158,10 +165,12 @@ fn main() {
 pub struct OnitamaGame {
     pub graphics: GameGraphics,
     pub board: Board,
+    audio_player: Option<AudioPlayer>,
 }
 impl OnitamaGame {
     pub fn new(graphics: GameGraphics, board: Board) -> Self {
-        OnitamaGame { graphics, board }
+        let audio_player = AudioPlayer::new().ok();
+        OnitamaGame { graphics, board, audio_player }
     }
     pub fn handle_mouse_input(&mut self, pressed: bool, mouse_pos: Vec2) {
         // If a piece is held
@@ -185,6 +194,7 @@ impl OnitamaGame {
                             .pieces
                             .make_move(&self.graphics.board, from_pos, to_pos);
                         self.graphics.cards.swap_cards();
+                        if let Some(audio_player) = self.audio_player.as_mut() { audio_player.play_sound(); }
                     }
                 }
                 self.graphics.pieces.unselect();
@@ -224,5 +234,24 @@ impl OnitamaGame {
     }
     pub fn winner(&self) -> Option<bool> {
         self.board.winner()
+    }
+}
+
+struct AudioPlayer {
+    _out_stream: OutputStream,
+    sink: Sink,
+    tap_sound: Buffered<Decoder<File>>,
+}
+impl AudioPlayer {
+    fn new() -> Result<Self,Box<dyn std::error::Error>> {
+        let out_stream = rodio::OutputStreamBuilder::open_default_stream()?;
+        let tap_file = std::fs::File::open("assets/tap_sound.wav")?;
+        let tap_sound = rodio::Decoder::new(tap_file)?.buffered();
+        let sink = Sink::connect_new(out_stream.mixer());
+
+        Ok(AudioPlayer { _out_stream: out_stream, sink, tap_sound })
+    }
+    fn play_sound(&mut self) {
+        self.sink.append(self.tap_sound.clone());
     }
 }
