@@ -187,14 +187,14 @@ impl SimpleRenderer {
             view_formats: &[],
         });
         self.queue.write_texture(
-            wgpu::ImageCopyTexture {
+            wgpu::TexelCopyTextureInfo {
                 texture: &texture,
                 aspect: wgpu::TextureAspect::All,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
             },
             image.as_bytes(),
-            wgpu::ImageDataLayout {
+            wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(4 * image.width()),
                 rows_per_image: Some(image.height()),

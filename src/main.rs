@@ -37,7 +37,7 @@ impl<'a> GFXState<'a> {
     async fn new(window: Window) -> Self {
         let window_arc = Arc::new(window);
         let size = window_arc.inner_size();
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
             ..Default::default()
         });
@@ -51,15 +51,13 @@ impl<'a> GFXState<'a> {
             .await
             .unwrap();
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::default(),
-                    label: None,
-                    memory_hints: Default::default(),
-                },
-                None,
-            )
+            .request_device(&wgpu::DeviceDescriptor {
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::default(),
+                memory_hints: Default::default(),
+                trace: wgpu::Trace::Off,
+                label: None,
+            })
             .await
             .unwrap();
         let surface_caps = surface.get_capabilities(&adapter);
@@ -254,6 +252,10 @@ impl ApplicationHandler for Application<'_> {
                     }
                     Err(wgpu::SurfaceError::Timeout) => {
                         log::warn!("Surface timeout")
+                    }
+                    Err(wgpu::SurfaceError::Other) => {
+                        log::error!("Some surface error");
+                        event_loop.exit();
                     }
                 }
             }
