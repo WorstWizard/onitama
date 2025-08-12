@@ -1,13 +1,8 @@
 use glam::Vec2;
 use glam::vec2;
 use onitama::game::Board;
-use onitama::graphics::Rect;
-use onitama::graphics::renderer::SimpleRenderer;
-use onitama::graphics::renderer::TexHandle;
+use onitama::graphics::{Rect, GFXState};
 use onitama::gui::GameGraphics;
-use onitama::gui::OnitamaGame;
-use std::sync::Arc;
-use wgpu::Color;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::ElementState;
@@ -20,143 +15,6 @@ use winit::window::Window;
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
 
-// Based on
-// https://sotrh.github.io/learn-wgpu/
-struct GFXState<'a> {
-    surface: wgpu::Surface<'a>,
-    device: Arc<wgpu::Device>,
-    queue: Arc<wgpu::Queue>,
-    _config: Arc<wgpu::SurfaceConfiguration>,
-    _size: winit::dpi::PhysicalSize<u32>,
-    disciple_tex: TexHandle,
-    sensei_tex: TexHandle,
-    window: Arc<Window>,
-    renderer: SimpleRenderer,
-}
-impl<'a> GFXState<'a> {
-    async fn new(window: Window) -> Self {
-        let window_arc = Arc::new(window);
-        let size = window_arc.inner_size();
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::PRIMARY,
-            ..Default::default()
-        });
-        let surface = instance.create_surface(window_arc.clone()).unwrap();
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::LowPower,
-                compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
-            })
-            .await
-            .unwrap();
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
-                memory_hints: Default::default(),
-                trace: wgpu::Trace::Off,
-                label: None,
-            })
-            .await
-            .unwrap();
-        let surface_caps = surface.get_capabilities(&adapter);
-        let surface_format = surface_caps
-            .formats
-            .iter()
-            .find(|f| f.is_srgb())
-            .copied()
-            .unwrap_or(surface_caps.formats[0]);
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
-            width: size.width,
-            height: size.height,
-            present_mode: surface_caps.present_modes[0],
-            alpha_mode: surface_caps.alpha_modes[0],
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
-        };
-        surface.configure(&device, &config);
-        let device_arc = Arc::new(device);
-        let queue_arc = Arc::new(queue);
-        let config_arc = Arc::new(config);
-        let mut renderer =
-            SimpleRenderer::new(device_arc.clone(), queue_arc.clone(), config_arc.clone());
-
-        // Load textures as RGBA8
-        let disciple_img = image::load(
-            std::io::BufReader::new(
-                std::fs::File::open("assets/disciple.png")
-                    .expect("did not find 'assets/disciple.png'"),
-            ),
-            image::ImageFormat::Png,
-        )
-        .expect("failed to decode asset")
-        .into_rgba8();
-        let sensei_img = image::load(
-            std::io::BufReader::new(
-                std::fs::File::open("assets/sensei.png").expect("did not find 'assets/sensei.png'"),
-            ),
-            image::ImageFormat::Png,
-        )
-        .expect("failed to decode asset")
-        .into_rgba8();
-
-        let disciple_tex = renderer.make_texture(disciple_img.into());
-        let sensei_tex = renderer.make_texture(sensei_img.into());
-        Self {
-            surface,
-            device: device_arc,
-            queue: queue_arc,
-            _config: config_arc,
-            _size: size,
-            disciple_tex,
-            sensei_tex,
-            window: window_arc,
-            renderer,
-        }
-    }
-    fn render(
-        &mut self,
-        game_graphics: &GameGraphics,
-        red_to_move: bool,
-    ) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                ..Default::default()
-            });
-
-            game_graphics.draw(&mut self.renderer, red_to_move);
-
-            self.renderer.render(&self.queue, &mut render_pass);
-        }
-
-        self.queue.submit(std::iter::once(encoder.finish()));
-        self.window.pre_present_notify();
-        output.present();
-        Ok(())
-    }
-}
-
 struct Inputs {
     pub mouse_pressed: bool,
     pub mouse_pos: Vec2,
@@ -165,7 +23,7 @@ struct Inputs {
 struct Application<'a> {
     gfx_state: Option<GFXState<'a>>,
     game: Option<OnitamaGame>,
-    inputs: Inputs,
+    inputs: Inputs
 }
 impl ApplicationHandler for Application<'_> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
@@ -294,4 +152,77 @@ fn main() {
     };
 
     event_loop.run_app(&mut app).unwrap();
+}
+
+// Main game
+pub struct OnitamaGame {
+    pub graphics: GameGraphics,
+    pub board: Board,
+}
+impl OnitamaGame {
+    pub fn new(graphics: GameGraphics, board: Board) -> Self {
+        OnitamaGame { graphics, board }
+    }
+    pub fn handle_mouse_input(&mut self, pressed: bool, mouse_pos: Vec2) {
+        // If a piece is held
+        if let Some(piece) = self.graphics.pieces.selected_piece_mut() {
+            // Piece released
+            if !pressed {
+                self.graphics.board.highlight_tiles(&[]);
+
+                // Try to make move
+                if let Some(to_pos) = self.graphics.board.window_to_board_pos(mouse_pos)
+                    && let Some(card) = self.graphics.cards.selected_card()
+                {
+                    let from_pos = piece.board_pos;
+                    if self
+                        .board
+                        .make_move(card.card(), from_pos, to_pos)
+                        .is_some()
+                    {
+                        // Move was legal
+                        self.graphics
+                            .pieces
+                            .make_move(&self.graphics.board, from_pos, to_pos);
+                        self.graphics.cards.swap_cards();
+                    }
+                }
+                self.graphics.pieces.unselect();
+            } else {
+                // Piece is held
+                piece.rect.origin = mouse_pos - piece.rect.size * 0.5;
+            }
+        } else if pressed {
+            // Piece clicked
+            self.graphics
+                .pieces
+                .select_by_click(mouse_pos, self.board.red_to_move());
+            // Card clicked
+            self.graphics
+                .cards
+                .select_by_click(mouse_pos, self.board.red_to_move());
+            // Update highlights
+            if let Some(piece) = self.graphics.pieces.selected_piece()
+                && let Some(graphic_card) = self.graphics.cards.selected_card()
+            {
+                let start_pos = piece.board_pos;
+                let highlights: Vec<_> = self
+                    .board
+                    .legal_moves_from_pos(start_pos)
+                    .iter()
+                    .filter_map(|game_move| {
+                        if game_move.used_card == graphic_card.card() {
+                            Some(game_move.end_pos)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                self.graphics.board.highlight_tiles(&highlights);
+            }
+        }
+    }
+    pub fn winner(&self) -> Option<bool> {
+        self.board.winner()
+    }
 }
