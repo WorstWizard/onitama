@@ -93,13 +93,13 @@ impl ApplicationHandler for Application<'_> {
             winit::event::WindowEvent::RedrawRequested => {
                 // Run update
                 let delta_time = self.timer.elapsed();
-                let needs_redraw = self
+                let needs_update = self
                     .game
                     .as_mut()
                     .unwrap()
                     .update(delta_time.as_secs_f32(), self.inputs.clone());
                 self.game_end(event_loop);
-                if needs_redraw {
+                if needs_update {
                     self.redraw_window()
                 }
 
@@ -185,12 +185,11 @@ impl OnitamaGame {
             animator: None,
         }
     }
-    /// Updates game, outputs true if window needs to be redrawn
+    /// Updates game, outputs true if another update loop should be run
     pub fn update(&mut self, delta_time: f32, inputs: Inputs) -> bool {
         // Player is red, AI is blue
         if self.board.red_to_move() {
-            self.handle_mouse_input(inputs.mouse_pressed, inputs.mouse_pos);
-            false
+            self.handle_mouse_input(inputs.mouse_pressed, inputs.mouse_pos)
         } else if let Some(animator) = &mut self.animator
             && animator.animating()
         {
@@ -226,7 +225,8 @@ impl OnitamaGame {
             true
         }
     }
-    pub fn handle_mouse_input(&mut self, pressed: bool, mouse_pos: Vec2) {
+    /// Handles player input, returns true if another update loop should be run
+    pub fn handle_mouse_input(&mut self, pressed: bool, mouse_pos: Vec2) -> bool {
         // If a piece is held
         if let Some(piece) = self.graphics.pieces.selected_piece_mut() {
             // Piece released
@@ -258,6 +258,7 @@ impl OnitamaGame {
                 // Piece is held
                 piece.rect.origin = mouse_pos - piece.rect.size * 0.5;
             }
+            return true
         } else if pressed {
             // Piece clicked
             self.graphics
@@ -286,7 +287,9 @@ impl OnitamaGame {
                     .collect();
                 self.graphics.board.highlight_tiles(&highlights);
             }
+            return true
         }
+        false
     }
     pub fn winner(&self) -> Option<bool> {
         self.board.winner()
