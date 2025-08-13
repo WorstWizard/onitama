@@ -3,7 +3,10 @@ use std::sync::Arc;
 use glam::{Vec2, Vec3};
 use winit::window::Window;
 
-use crate::{graphics::renderer::{SimpleRenderer, TexHandle}, gui::GameGraphics};
+use crate::{
+    graphics::renderer::{SimpleRenderer, TexHandle},
+    gui::GameGraphics,
+};
 
 pub mod board;
 pub mod card;

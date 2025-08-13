@@ -1,22 +1,16 @@
+use std::error::Error;
 use std::fs::File;
 
-use glam::Vec2;
-use glam::vec2;
+use glam::{vec2, Vec2};
 use onitama::game::Board;
-use onitama::graphics::{Rect, GFXState};
+use onitama::graphics::{GFXState, Rect};
 use onitama::gui::GameGraphics;
-use rodio::source::Buffered;
-use rodio::Decoder;
-use rodio::OutputStream;
-use rodio::Sink;
-use rodio::Source;
+use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink, Source, source::Buffered};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::ElementState;
-use winit::event::KeyEvent;
-use winit::event_loop::EventLoop;
-use winit::keyboard::KeyCode;
-use winit::keyboard::PhysicalKey;
+use winit::event::{ElementState, KeyEvent};
+use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::Window;
 
 const WIDTH: u32 = 1200;
@@ -30,7 +24,7 @@ struct Inputs {
 struct Application<'a> {
     gfx_state: Option<GFXState<'a>>,
     game: Option<OnitamaGame>,
-    inputs: Inputs
+    inputs: Inputs,
 }
 impl ApplicationHandler for Application<'_> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
@@ -132,7 +126,7 @@ impl Application<'_> {
     fn redraw_window(&self) {
         self.gfx_state.as_ref().unwrap().window.request_redraw();
     }
-    fn game_end(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+    fn game_end(&mut self, event_loop: &ActiveEventLoop) {
         if let Some(red_won) = self.game.as_ref().unwrap().winner() {
             if red_won {
                 println!("Red wins!")
@@ -170,7 +164,11 @@ pub struct OnitamaGame {
 impl OnitamaGame {
     pub fn new(graphics: GameGraphics, board: Board) -> Self {
         let audio_player = AudioPlayer::new().ok();
-        OnitamaGame { graphics, board, audio_player }
+        OnitamaGame {
+            graphics,
+            board,
+            audio_player,
+        }
     }
     pub fn handle_mouse_input(&mut self, pressed: bool, mouse_pos: Vec2) {
         // If a piece is held
@@ -194,7 +192,9 @@ impl OnitamaGame {
                             .pieces
                             .make_move(&self.graphics.board, from_pos, to_pos);
                         self.graphics.cards.swap_cards();
-                        if let Some(audio_player) = self.audio_player.as_mut() { audio_player.play_sound(); }
+                        if let Some(audio_player) = self.audio_player.as_mut() {
+                            audio_player.play_sound();
+                        }
                     }
                 }
                 self.graphics.pieces.unselect();
@@ -243,13 +243,17 @@ struct AudioPlayer {
     tap_sound: Buffered<Decoder<File>>,
 }
 impl AudioPlayer {
-    fn new() -> Result<Self,Box<dyn std::error::Error>> {
-        let out_stream = rodio::OutputStreamBuilder::open_default_stream()?;
-        let tap_file = std::fs::File::open("assets/tap_sound.wav")?;
-        let tap_sound = rodio::Decoder::new(tap_file)?.buffered();
+    fn new() -> Result<Self, Box<dyn Error>> {
+        let out_stream = OutputStreamBuilder::open_default_stream()?;
+        let tap_file = File::open("assets/tap_sound.wav")?;
+        let tap_sound = Decoder::new(tap_file)?.buffered();
         let sink = Sink::connect_new(out_stream.mixer());
 
-        Ok(AudioPlayer { _out_stream: out_stream, sink, tap_sound })
+        Ok(AudioPlayer {
+            _out_stream: out_stream,
+            sink,
+            tap_sound,
+        })
     }
     fn play_sound(&mut self) {
         self.sink.append(self.tap_sound.clone());

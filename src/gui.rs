@@ -1,4 +1,3 @@
-use glam::vec2;
 use crate::{
     game::Board,
     graphics::{
@@ -9,6 +8,7 @@ use crate::{
         renderer::{SimpleRenderer, TexHandle},
     },
 };
+use glam::vec2;
 
 // Shared/static game UI
 const PREF_RATIO: f32 = 12.0 / 8.0;
