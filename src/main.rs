@@ -1,8 +1,10 @@
 use std::error::Error;
 use std::fs::File;
+use std::time::Instant;
 
-use glam::{vec2, Vec2};
-use onitama::game::Board;
+use glam::{Vec2, vec2};
+use onitama::ai::{AIOpponent, RandomMover};
+use onitama::game::{Board, GameMove};
 use onitama::graphics::{GFXState, Rect};
 use onitama::gui::GameGraphics;
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink, Source, source::Buffered};
@@ -15,8 +17,10 @@ use winit::window::Window;
 
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
+const ANIM_TIME: f32 = 0.25;
 
-struct Inputs {
+#[derive(Clone)]
+pub struct Inputs {
     pub mouse_pressed: bool,
     pub mouse_pos: Vec2,
 }
@@ -25,6 +29,7 @@ struct Application<'a> {
     gfx_state: Option<GFXState<'a>>,
     game: Option<OnitamaGame>,
     inputs: Inputs,
+    timer: Instant,
 }
 impl ApplicationHandler for Application<'_> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
@@ -74,12 +79,7 @@ impl ApplicationHandler for Application<'_> {
                 position,
             } => {
                 self.inputs.mouse_pos = vec2(position.x as f32, position.y as f32);
-                self.game
-                    .as_mut()
-                    .unwrap()
-                    .handle_mouse_input(self.inputs.mouse_pressed, self.inputs.mouse_pos);
                 self.redraw_window();
-                self.game_end(event_loop);
             }
             winit::event::WindowEvent::MouseInput {
                 button,
@@ -88,14 +88,21 @@ impl ApplicationHandler for Application<'_> {
             } => {
                 self.inputs.mouse_pressed = button == winit::event::MouseButton::Left
                     && state == winit::event::ElementState::Pressed;
-                self.game
-                    .as_mut()
-                    .unwrap()
-                    .handle_mouse_input(self.inputs.mouse_pressed, self.inputs.mouse_pos);
                 self.redraw_window();
-                self.game_end(event_loop);
             }
             winit::event::WindowEvent::RedrawRequested => {
+                // Run update
+                let delta_time = self.timer.elapsed();
+                let needs_redraw = self
+                    .game
+                    .as_mut()
+                    .unwrap()
+                    .update(delta_time.as_secs_f32(), self.inputs.clone());
+                self.game_end(event_loop);
+                if needs_redraw {
+                    self.redraw_window()
+                }
+
                 match self.gfx_state.as_mut().unwrap().render(
                     &self.game.as_ref().unwrap().graphics,
                     self.game.as_ref().unwrap().board.red_to_move(),
@@ -117,6 +124,7 @@ impl ApplicationHandler for Application<'_> {
                         event_loop.exit();
                     }
                 }
+                self.timer = Instant::now();
             }
             _ => (),
         }
@@ -150,6 +158,7 @@ fn main() {
             mouse_pressed: false,
             mouse_pos: vec2(0.0, 0.0),
         },
+        timer: Instant::now(),
     };
 
     event_loop.run_app(&mut app).unwrap();
@@ -160,6 +169,9 @@ pub struct OnitamaGame {
     pub graphics: GameGraphics,
     pub board: Board,
     audio_player: Option<AudioPlayer>,
+    ai_opponent: RandomMover,
+    last_ai_move: Option<GameMove>,
+    animator: Option<MoveAnimator>,
 }
 impl OnitamaGame {
     pub fn new(graphics: GameGraphics, board: Board) -> Self {
@@ -168,6 +180,50 @@ impl OnitamaGame {
             graphics,
             board,
             audio_player,
+            ai_opponent: RandomMover {},
+            last_ai_move: None,
+            animator: None,
+        }
+    }
+    /// Updates game, outputs true if window needs to be redrawn
+    pub fn update(&mut self, delta_time: f32, inputs: Inputs) -> bool {
+        // Player is red, AI is blue
+        if self.board.red_to_move() {
+            self.handle_mouse_input(inputs.mouse_pressed, inputs.mouse_pos);
+            false
+        } else if let Some(animator) = &mut self.animator
+            && animator.animating()
+        {
+            // Currently animating a move
+            let graphic_piece = self.graphics.pieces.selected_piece_mut().unwrap();
+            let finished = animator.animate(&mut graphic_piece.rect.origin, delta_time);
+            if finished {
+                self.graphics.pieces.make_move(
+                    &self.graphics.board,
+                    self.last_ai_move.as_ref().unwrap().start_pos,
+                    self.last_ai_move.as_ref().unwrap().end_pos,
+                );
+                self.graphics.cards.swap_cards();
+                self.board
+                    .make_move_unchecked(self.last_ai_move.take().unwrap());
+                if let Some(player) = &mut self.audio_player {
+                    player.play_sound()
+                }
+            }
+            true
+        } else {
+            let ai_move = self.ai_opponent.suggest_move(self.board.clone(), false);
+            self.last_ai_move = Some(ai_move.clone());
+
+            // Start animation
+            self.graphics
+                .pieces
+                .select_by_index(ai_move.start_pos.to_index());
+            self.graphics.cards.select_card(ai_move.used_card);
+            let start_pos = self.graphics.board.tile_corners()[ai_move.start_pos.to_index()];
+            let end_pos = self.graphics.board.tile_corners()[ai_move.end_pos.to_index()];
+            self.animator = Some(MoveAnimator::new(start_pos, end_pos));
+            true
         }
     }
     pub fn handle_mouse_input(&mut self, pressed: bool, mouse_pos: Vec2) {
@@ -257,5 +313,36 @@ impl AudioPlayer {
     }
     fn play_sound(&mut self) {
         self.sink.append(self.tap_sound.clone());
+    }
+}
+
+pub struct MoveAnimator {
+    animating: bool,
+    time: f32,
+    start_point: Vec2,
+    end_point: Vec2,
+}
+impl MoveAnimator {
+    pub fn new(start_point: Vec2, end_point: Vec2) -> Self {
+        Self {
+            animating: true,
+            time: 0.0,
+            start_point,
+            end_point,
+        }
+    }
+    pub fn animating(&self) -> bool {
+        self.animating
+    }
+    /// Animates the position, returns true when animation is over
+    pub fn animate(&mut self, position: &mut Vec2, delta_time: f32) -> bool {
+        self.time += delta_time;
+        if self.time >= ANIM_TIME {
+            self.time = ANIM_TIME;
+            self.animating = false
+        }
+        let new_pos = self.start_point.lerp(self.end_point, self.time / ANIM_TIME);
+        *position = new_pos;
+        !self.animating
     }
 }

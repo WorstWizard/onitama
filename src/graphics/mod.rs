@@ -191,39 +191,3 @@ impl<'a> GFXState<'a> {
         Ok(())
     }
 }
-
-/*
-pub struct MoveAnimator {
-    animating: bool,
-    time: f32,
-    start_point: (i32, i32),
-    end_point: (i32, i32),
-}
-impl MoveAnimator {
-    pub fn new(start_point: (i32, i32), end_point: (i32, i32)) -> Self {
-        Self {
-            animating: true,
-            time: 0.0,
-            start_point,
-            end_point,
-        }
-    }
-    pub fn animating(&self) -> bool {
-        self.animating
-    }
-    /// Animates the piece, returns true if the animation is over
-    pub fn animate(&mut self, piece: &mut GraphicPiece, delta_time: f32) -> bool {
-        self.time += delta_time;
-        if self.time >= ANIM_TIME {
-            self.time = ANIM_TIME;
-            self.animating = false
-        }
-        fn lerp(a: i32, b: i32, t: f32) -> i32 {
-            (a as f32 * (1.0 - t) + b as f32 * t) as i32
-        }
-        piece.x = lerp(self.start_point.0, self.end_point.0, self.time / ANIM_TIME);
-        piece.y = lerp(self.start_point.1, self.end_point.1, self.time / ANIM_TIME);
-        !self.animating
-    }
-}
-**/

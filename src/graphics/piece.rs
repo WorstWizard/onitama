@@ -89,6 +89,11 @@ impl PieceGraphicsManager {
             }
         }
     }
+    /// Does not check validity of index, panics if no piece is present
+    pub fn select_by_index(&mut self, index: usize) {
+        self.selected_index = Some(index);
+        self.selected_original_pos = self.piece_graphics[index].as_ref().unwrap().rect.origin;
+    }
     pub fn remove_at_pos(&mut self, pos: Pos) {
         self.piece_graphics[pos.to_index()] = None;
     }
