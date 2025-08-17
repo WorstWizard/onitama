@@ -41,15 +41,21 @@ impl ApplicationHandler for Application<'_> {
                     .with_title("Onitama"),
             )
             .unwrap();
-        self.gfx_state = Some(pollster::block_on(GFXState::new(window)));
+
+        let mut gfx_state = pollster::block_on(GFXState::new(window));
+        let disciple_tex = gfx_state.load_texture("assets/disciple.png");
+        let sensei_tex = gfx_state.load_texture("assets/sensei.png");
+        
         let game_board = Board::random_cards();
         let game_graphics = GameGraphics::new(
             Rect::new(Vec2::ZERO, vec2(WIDTH as f32, HEIGHT as f32)),
             &game_board,
-            self.gfx_state.as_ref().unwrap().disciple_tex,
-            self.gfx_state.as_ref().unwrap().sensei_tex,
+            disciple_tex,
+            sensei_tex,
         );
         let game = OnitamaGame::new(game_graphics, game_board);
+
+        self.gfx_state = Some(gfx_state);
         self.game = Some(game);
     }
     fn window_event(
@@ -258,7 +264,7 @@ impl OnitamaGame {
                 // Piece is held
                 piece.rect.origin = mouse_pos - piece.rect.size * 0.5;
             }
-            return true
+            return true;
         } else if pressed {
             // Piece clicked
             self.graphics
@@ -287,7 +293,7 @@ impl OnitamaGame {
                     .collect();
                 self.graphics.board.highlight_tiles(&highlights);
             }
-            return true
+            return true;
         }
         false
     }

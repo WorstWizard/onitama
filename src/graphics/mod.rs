@@ -59,12 +59,10 @@ mod colors {
 // https://sotrh.github.io/learn-wgpu/
 pub struct GFXState<'a> {
     surface: wgpu::Surface<'a>,
-    device: Arc<wgpu::Device>,
-    queue: Arc<wgpu::Queue>,
+    pub device: Arc<wgpu::Device>,
+    pub queue: Arc<wgpu::Queue>,
     _config: Arc<wgpu::SurfaceConfiguration>,
     _size: winit::dpi::PhysicalSize<u32>,
-    pub disciple_tex: TexHandle,
-    pub sensei_tex: TexHandle,
     pub window: Arc<Window>,
     renderer: SimpleRenderer,
 }
@@ -116,41 +114,30 @@ impl<'a> GFXState<'a> {
         let device_arc = Arc::new(device);
         let queue_arc = Arc::new(queue);
         let config_arc = Arc::new(config);
-        let mut renderer =
+        let renderer =
             SimpleRenderer::new(device_arc.clone(), queue_arc.clone(), config_arc.clone());
 
-        // Load textures as RGBA8
-        let disciple_img = image::load(
-            std::io::BufReader::new(
-                std::fs::File::open("assets/disciple.png")
-                    .expect("did not find 'assets/disciple.png'"),
-            ),
-            image::ImageFormat::Png,
-        )
-        .expect("failed to decode asset")
-        .into_rgba8();
-        let sensei_img = image::load(
-            std::io::BufReader::new(
-                std::fs::File::open("assets/sensei.png").expect("did not find 'assets/sensei.png'"),
-            ),
-            image::ImageFormat::Png,
-        )
-        .expect("failed to decode asset")
-        .into_rgba8();
-
-        let disciple_tex = renderer.make_texture(disciple_img.into());
-        let sensei_tex = renderer.make_texture(sensei_img.into());
         Self {
             surface,
             device: device_arc,
             queue: queue_arc,
             _config: config_arc,
             _size: size,
-            disciple_tex,
-            sensei_tex,
             window: window_arc,
             renderer,
         }
+    }
+    /// Loads a texture from a **PNG** and returns handle to it
+    pub fn load_texture(&mut self, path: &str) -> TexHandle {
+        let img = image::load(
+            std::io::BufReader::new(
+                std::fs::File::open(path).unwrap_or_else(|_| panic!("did not find {path}")),
+            ),
+            image::ImageFormat::Png,
+        )
+        .expect("failed to decode asset")
+        .into_rgba8();
+        self.renderer.make_texture(img.into())
     }
     pub fn render(
         &mut self,
