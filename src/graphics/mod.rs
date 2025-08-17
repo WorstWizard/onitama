@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use glam::{Vec2, Vec3};
+use wgpu::TextureFormat;
 use winit::window::Window;
 
 use crate::{
@@ -58,7 +59,8 @@ mod colors {
 // Based on
 // https://sotrh.github.io/learn-wgpu/
 pub struct GFXState<'a> {
-    surface: wgpu::Surface<'a>,
+    pub surface: wgpu::Surface<'a>,
+    surface_format: TextureFormat,
     pub device: Arc<wgpu::Device>,
     pub queue: Arc<wgpu::Queue>,
     _config: Arc<wgpu::SurfaceConfiguration>,
@@ -119,6 +121,7 @@ impl<'a> GFXState<'a> {
 
         Self {
             surface,
+            surface_format,
             device: device_arc,
             queue: queue_arc,
             _config: config_arc,
@@ -126,6 +129,9 @@ impl<'a> GFXState<'a> {
             window: window_arc,
             renderer,
         }
+    }
+    pub fn surface_format(&self) -> TextureFormat {
+        self.surface_format
     }
     /// Loads a texture from a **PNG** and returns handle to it
     pub fn load_texture(&mut self, path: &str) -> TexHandle {
@@ -177,4 +183,42 @@ impl<'a> GFXState<'a> {
         output.present();
         Ok(())
     }
+    /// Returns command encoder, associated render pass (static lifetime) and output surface texture
+    /// Mutating command encoder before render pass is finished recording is a runtime error
+    pub fn begin_render_pass(
+        &self,
+    ) -> Result<RenderingObjects, wgpu::SurfaceError> {
+        let output_texture = self.surface.get_current_texture()?;
+        let view = output_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+        let render_pass = {
+            encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    ..Default::default()
+                })
+                .forget_lifetime()
+        };
+        Ok(RenderingObjects { encoder, render_pass, output_texture })
+    }
+}
+
+pub struct RenderingObjects {
+    pub encoder: wgpu::CommandEncoder,
+    pub render_pass: wgpu::RenderPass<'static>,
+    pub output_texture: wgpu::SurfaceTexture
 }
