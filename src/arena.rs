@@ -24,9 +24,9 @@ fn main() {
 }
 
 struct Application<'a> {
-    gfx_state: Option<GFXState<'a>>,
     egui_renderer: Option<egui_wgpu::Renderer>,
     egui_state: Option<egui_winit::State>,
+    gfx_state: Option<GFXState<'a>>,
 }
 impl ApplicationHandler for Application<'_> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
