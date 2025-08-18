@@ -17,6 +17,7 @@ fn main() {
     let mut app = Application {
         gfx_state: None,
         egui_renderer: None,
+        egui_state: None,
     };
 
     event_loop.run_app(&mut app).unwrap();
@@ -25,6 +26,7 @@ fn main() {
 struct Application<'a> {
     gfx_state: Option<GFXState<'a>>,
     egui_renderer: Option<egui_wgpu::Renderer>,
+    egui_state: Option<egui_winit::State>,
 }
 impl ApplicationHandler for Application<'_> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -47,8 +49,12 @@ impl ApplicationHandler for Application<'_> {
             false,
         );
 
-        self.gfx_state = Some(gfx_state);
+        event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
+
+        let egui_ctx = egui::Context::default();
+        self.egui_state = Some(egui_winit::State::new(egui_ctx.clone(), egui::viewport::ViewportId::ROOT, &gfx_state.window, None, None, None));
         self.egui_renderer = Some(egui_renderer);
+        self.gfx_state = Some(gfx_state);
     }
     fn window_event(
         &mut self,
@@ -56,32 +62,39 @@ impl ApplicationHandler for Application<'_> {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        let gfx_state = self.gfx_state.as_ref().unwrap();                
+        let state = self.egui_state.as_mut().unwrap();
+
+        let _ = state.on_window_event(&gfx_state.window, &event); // Process event with egui
+        // if event_response.consumed { return }
+
         match event {
             WindowEvent::RedrawRequested => {
-                println!("drawing");
-                let mut ctx = egui::Context::default();
-                let gfx_state = self.gfx_state.as_ref().unwrap();
-                let full_output = test_ui(&mut ctx);
-                let clipped_prims = ctx.tessellate(full_output.shapes, 1.0);
+                const PPP: f32 = 1.0;
+                
+                let raw_input = state.take_egui_input(&gfx_state.window);
+                let full_output = state.egui_ctx().run(raw_input, egui_ui);
+                state.handle_platform_output(&gfx_state.window, full_output.platform_output);
+
+                let clipped_prims = state.egui_ctx().tessellate(full_output.shapes, PPP);
                 let screen_descriptor = egui_wgpu::ScreenDescriptor {
-                        pixels_per_point: 1.0,
-                        size_in_pixels: [WIDTH, HEIGHT],
-                    };
+                    pixels_per_point: PPP,
+                    size_in_pixels: [WIDTH, HEIGHT],
+                };
+
                 let mut r_objs =
                     gfx_state.begin_render_pass().expect("surface error");
                 self.egui_renderer.as_mut().unwrap().update_buffers(&gfx_state.device, &gfx_state.queue, &mut r_objs.encoder, &clipped_prims, &screen_descriptor);
-                println!("buffers updated");
+
                 for (id, delta) in full_output.textures_delta.set {
                     self.egui_renderer.as_mut().unwrap()
                         .update_texture(&gfx_state.device, &gfx_state.queue, id, &delta);
                 }
-                println!("textures updated");
                 self.egui_renderer.as_ref().unwrap().render(
                     &mut r_objs.render_pass,
                     &clipped_prims,
                     &screen_descriptor,
                 );
-                println!("egui rendered");
 
                 for tex in full_output.textures_delta.free {
                     self.egui_renderer.as_mut().unwrap().free_texture(&tex);
@@ -89,10 +102,10 @@ impl ApplicationHandler for Application<'_> {
 
                 std::mem::drop(r_objs.render_pass);
                 gfx_state.queue.submit(std::iter::once(r_objs.encoder.finish()));
-                println!("encoder finished");
                 gfx_state.window.pre_present_notify();
                 r_objs.output_texture.present();
-                println!("presented texture");
+
+                gfx_state.window.request_redraw();
             }
             WindowEvent::CloseRequested => {
                 event_loop.exit();
@@ -102,18 +115,13 @@ impl ApplicationHandler for Application<'_> {
     }
 }
 
-fn test_ui(ctx: &mut egui::Context) -> egui::FullOutput {
-    let test_input = egui::RawInput {
-        ..Default::default()
-    };
-    let full_output = ctx.run(test_input, |ctx| {
-        egui::CentralPanel::default().show(&ctx, |ui| {
-            ui.label("Hello world from the arena!");
-        });
+fn egui_ui(ctx: &egui::Context) {
+    egui::CentralPanel::default().show(ctx, |ui| {
+        let frame_nr = ctx.cumulative_frame_nr();
+        ui.label("Hello world from the arena!");
+        if ui.button("Click here!").clicked() {
+            println!("Button clicked!");
+        }
+        ui.label(format!("Frame {frame_nr}"));
     });
-    full_output
-}
-
-fn handle_output(platform_output: egui::PlatformOutput) {
-    // todo!()
 }
