@@ -20,9 +20,9 @@ impl GraphicBoard {
 
         let board_width = f32::min(rect.size.x, rect.size.y);
         let tile_width = (board_width - LINEWIDTH * 6.0) / 5.0;
-        let origin = vec2(0.0, 0.0);
+        let origin = rect.origin;
         let mut tiles = [Rect::new(Vec2::ZERO, Vec2::ZERO); 25];
-        let mut tile_corners = [vec2(0.0, 0.0); 25];
+        let mut tile_corners = [Vec2::ZERO; 25];
         let mut i = 0;
         for row in 0..5 {
             for col in 0..5 {

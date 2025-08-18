@@ -30,10 +30,10 @@ impl GameGraphics {
         } else {
             Rect::new(rect.origin, vec2(rect.size.x, rect.size.x / PREF_RATIO))
         };
-        let board_rect = Rect::new(rect.origin, vec2(actual_rect.size.y, actual_rect.size.y));
+        let board_rect = Rect::new(actual_rect.origin, vec2(actual_rect.size.y, actual_rect.size.y));
         let board = GraphicBoard::new(board_rect);
         let card_rect = Rect::new(
-            vec2(rect.origin.x + board_rect.size.x, rect.origin.y),
+            vec2(actual_rect.origin.x + board_rect.size.x, actual_rect.origin.y),
             vec2(actual_rect.size.x - board_rect.size.x, actual_rect.size.y),
         );
         let cards = CardGraphicManager::new(game_board, card_rect);

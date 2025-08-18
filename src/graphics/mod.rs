@@ -66,7 +66,7 @@ pub struct GFXState<'a> {
     _config: Arc<wgpu::SurfaceConfiguration>,
     _size: winit::dpi::PhysicalSize<u32>,
     pub window: Arc<Window>,
-    renderer: SimpleRenderer,
+    pub renderer: SimpleRenderer,
 }
 impl<'a> GFXState<'a> {
     pub async fn new(window: Window) -> Self {
