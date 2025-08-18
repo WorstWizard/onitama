@@ -1,4 +1,5 @@
-use onitama::{ai::{self, AIOpponent}, game::Board, graphics::GFXState};
+use egui::Ui;
+use onitama::{ai::{self, AIOpponent}, game::Board, graphics::{renderer::TexHandle, GFXState}, gui::GameGraphics};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -18,9 +19,7 @@ fn main() {
         gfx_state: None,
         egui_renderer: None,
         egui_state: None,
-        game: None,
-        disciple_tex: None,
-        sensei_tex: None
+        arena: None,
     };
 
     event_loop.run_app(&mut app).unwrap();
@@ -30,9 +29,7 @@ struct Application<'a> {
     egui_renderer: Option<egui_wgpu::Renderer>,
     egui_state: Option<egui_winit::State>,
     gfx_state: Option<GFXState<'a>>,
-    game: Option<Board>,
-    disciple_tex: Option<onitama::graphics::renderer::TexHandle>,
-    sensei_tex: Option<onitama::graphics::renderer::TexHandle>,
+    arena: Option<Arena>
 }
 impl ApplicationHandler for Application<'_> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -58,9 +55,7 @@ impl ApplicationHandler for Application<'_> {
 
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
 
-        self.game = Some(Board::random_cards());
-        self.disciple_tex = Some(gfx_state.load_texture("assets/disciple.png"));
-        self.sensei_tex = Some(gfx_state.load_texture("assets/sensei.png"));
+        self.arena = Some(Arena::new(gfx_state.load_texture("assets/disciple.png"), gfx_state.load_texture("assets/sensei.png")));
         self.egui_state = Some(egui_winit::State::new(egui_ctx.clone(), egui::viewport::ViewportId::ROOT, &gfx_state.window, None, None, None));
         self.egui_renderer = Some(egui_renderer);
         self.gfx_state = Some(gfx_state);
@@ -73,7 +68,7 @@ impl ApplicationHandler for Application<'_> {
     ) {
         let gfx_state = self.gfx_state.as_mut().unwrap();                
         let state = self.egui_state.as_mut().unwrap();
-        let game = self.game.as_mut().unwrap();
+        let arena = self.arena.as_mut().unwrap();
 
         let _ = state.on_window_event(&gfx_state.window, &event); // Process event with egui
         // if event_response.consumed { return }
@@ -85,7 +80,7 @@ impl ApplicationHandler for Application<'_> {
                 let raw_input = state.take_egui_input(&gfx_state.window);
                 let mut leftover_rect = egui::Rect::ZERO;
                 let full_output = state.egui_ctx().run(raw_input, |ctx| {
-                    egui_ui(ctx, game);
+                    arena.make_ui(ctx);
                     leftover_rect = ctx.available_rect();
                 });
                 state.handle_platform_output(&gfx_state.window, full_output.platform_output);
@@ -100,13 +95,8 @@ impl ApplicationHandler for Application<'_> {
 
                     // Render game
                     let game_rect = from_egui_rect(leftover_rect);
-                    let game_graphics = onitama::gui::GameGraphics::new(
-                        game_rect,
-                        game,
-                        self.disciple_tex.unwrap(),
-                        self.sensei_tex.unwrap()
-                    );
-                    game_graphics.draw(&mut gfx_state.renderer, game.red_to_move()); // Draw game
+                    let game_graphics = arena.game_graphics(game_rect);
+                    game_graphics.draw(&mut gfx_state.renderer, arena.red_to_move()); // Draw game
                     gfx_state.renderer.render(&gfx_state.queue, &mut render_pass);
 
                     // Update egui
@@ -147,27 +137,62 @@ impl ApplicationHandler for Application<'_> {
     }
 }
 
-fn egui_ui(ctx: &egui::Context, game: &mut Board) {
-    egui::SidePanel::left("left panel")
-        .resizable(false)
-        .show(ctx, |ui| {
-            ui.vertical(|ui| {
-                ui.label("Cards in use:");
-                let mut sorted_cards = game.cards();
-                sorted_cards.sort_by(|a, b| {
-                    onitama::cards::card_identifier(a).cmp(&onitama::cards::card_identifier(b))
+struct Arena {
+    position_generation: PositionGeneration,
+    game: Board,
+    disciple_tex: TexHandle,
+    sensei_tex: TexHandle
+}
+impl Arena {
+    fn make_ui(&mut self, ctx: &egui::Context) {
+        egui::SidePanel::left("left panel")
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    if ui.button("Next move").clicked() {
+                        let ai = ai::RandomMover{};
+                        let game_move = ai.suggest_move(self.game.clone(), self.red_to_move());
+                        self.game.make_move_unchecked(game_move);
+                    }
                 });
-                for card in sorted_cards {
-                    ui.label((onitama::cards::card_identifier(&card) as char).to_string());
-                }
                 ui.separator();
-                if ui.button("Next move").clicked() {
-                    let ai = ai::RandomMover{};
-                    let game_move = ai.suggest_move(game.clone(), game.red_to_move());
-                    game.make_move_unchecked(game_move);
-                }
+                self.position_generation.make_ui(ui);
             });
-    });
+    }
+    
+    fn game_graphics(&self, rect: onitama::graphics::Rect) -> GameGraphics {
+        GameGraphics::new(rect, &self.game, self.disciple_tex, self.sensei_tex)
+    }
+    
+    fn red_to_move(&self) -> bool {
+        self.game.red_to_move()
+    }
+    
+    fn new(disciple_tex: TexHandle, sensei_tex: TexHandle) -> Self {
+        Self { position_generation: PositionGeneration::new(), game: Board::random_cards(), disciple_tex, sensei_tex }
+    }
+}
+
+struct PositionGeneration {
+    bulk_number: u32,
+}
+impl PositionGeneration {
+    fn new() -> Self {
+        Self { bulk_number: 1 }
+    }
+
+    pub fn make_ui(&mut self, ui: &mut Ui) {
+        ui.label("Starting position suite");
+        if ui.button("Random position").clicked() {
+            println!("make a thing");
+        }
+        ui.horizontal(|ui| {
+            if ui.button("Bulk generate").clicked() {
+                println!("make a lot of thing");
+            }
+            ui.add(egui::DragValue::new(&mut self.bulk_number).range(1..=1000));
+        });
+    }
 }
 
 fn from_egui_rect(rect: egui::Rect) -> onitama::graphics::Rect {
