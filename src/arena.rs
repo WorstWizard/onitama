@@ -1,4 +1,4 @@
-use onitama::{game::Board, graphics::GFXState};
+use onitama::{ai::{self, AIOpponent}, game::Board, graphics::GFXState};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -73,7 +73,7 @@ impl ApplicationHandler for Application<'_> {
     ) {
         let gfx_state = self.gfx_state.as_mut().unwrap();                
         let state = self.egui_state.as_mut().unwrap();
-        let game = self.game.as_ref().unwrap();
+        let game = self.game.as_mut().unwrap();
 
         let _ = state.on_window_event(&gfx_state.window, &event); // Process event with egui
         // if event_response.consumed { return }
@@ -147,7 +147,7 @@ impl ApplicationHandler for Application<'_> {
     }
 }
 
-fn egui_ui(ctx: &egui::Context, game: &Board) {
+fn egui_ui(ctx: &egui::Context, game: &mut Board) {
     egui::SidePanel::left("left panel")
         .resizable(false)
         .show(ctx, |ui| {
@@ -159,6 +159,12 @@ fn egui_ui(ctx: &egui::Context, game: &Board) {
                 });
                 for card in sorted_cards {
                     ui.label((onitama::cards::card_identifier(&card) as char).to_string());
+                }
+                ui.separator();
+                if ui.button("Next move").clicked() {
+                    let ai = ai::RandomMover{};
+                    let game_move = ai.suggest_move(game.clone(), game.red_to_move());
+                    game.make_move_unchecked(game_move);
                 }
             });
     });
