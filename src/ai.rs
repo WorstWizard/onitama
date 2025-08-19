@@ -1,4 +1,11 @@
-use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, thread::JoinHandle, time::Duration};
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread::JoinHandle,
+    time::Duration,
+};
 
 use crate::game::*;
 use tinyrand::{Rand, RandRange, Seeded, StdRand};
@@ -14,7 +21,7 @@ impl AsyncAI {
         Self {
             cancel_signal: Arc::new(AtomicBool::new(false)),
             ai_oppponent,
-            thread_handle: None
+            thread_handle: None,
         }
     }
 
@@ -35,7 +42,8 @@ impl AsyncAI {
     /// Panics if the search hasn't been started first with `start_search`
     pub fn stop_search(&mut self) -> GameMove {
         self.cancel_signal.store(true, Ordering::Relaxed); // Signal detached thread to stop
-        self.thread_handle.take()
+        self.thread_handle
+            .take()
             .expect("Search stopped before it was started")
             .join() // Wait on return value
             .expect("Search thread panicked")
@@ -47,10 +55,15 @@ impl AsyncAI {
     }
 }
 
-pub trait AIOpponent : Send + Sync {
+pub trait AIOpponent: Send + Sync {
     /// Searches for a gamemove, must return early when the cancel signal turns true
     /// If the search finishes early, should set the cancel signal itself, it also serves as a "finished" signal
-    fn search(&self, cancel_signal: Arc<AtomicBool>, board: Board, remaining_time: Option<Duration>) -> GameMove;
+    fn search(
+        &self,
+        cancel_signal: Arc<AtomicBool>,
+        board: Board,
+        remaining_time: Option<Duration>,
+    ) -> GameMove;
 
     #[deprecated]
     fn suggest_move(&self, board: Board) -> GameMove {
@@ -61,7 +74,12 @@ pub trait AIOpponent : Send + Sync {
 #[derive(Default)]
 pub struct RandomMover;
 impl AIOpponent for RandomMover {
-    fn search(&self, cancel_signal: Arc<AtomicBool>, board: Board, _remaining_time: Option<Duration>) -> GameMove {
+    fn search(
+        &self,
+        cancel_signal: Arc<AtomicBool>,
+        board: Board,
+        _remaining_time: Option<Duration>,
+    ) -> GameMove {
         cancel_signal.store(true, Ordering::Relaxed);
         self.suggest_move(board)
     }
@@ -77,7 +95,12 @@ pub struct MinMaxV0 {
     max_depth: u32,
 }
 impl AIOpponent for MinMaxV0 {
-    fn search(&self, cancel_signal: Arc<AtomicBool>, board: Board, remaining_time: Option<Duration>) -> GameMove {
+    fn search(
+        &self,
+        cancel_signal: Arc<AtomicBool>,
+        board: Board,
+        remaining_time: Option<Duration>,
+    ) -> GameMove {
         todo!()
     }
     fn suggest_move(&self, mut board: Board) -> GameMove {

@@ -45,7 +45,7 @@ impl ApplicationHandler for Application<'_> {
         let mut gfx_state = pollster::block_on(GFXState::new(window));
         let disciple_tex = gfx_state.load_texture("assets/disciple.png");
         let sensei_tex = gfx_state.load_texture("assets/sensei.png");
-        
+
         let game_board = Board::random_cards();
         let game_graphics = GameGraphics::new(
             Rect::new(Vec2::ZERO, vec2(WIDTH as f32, HEIGHT as f32)),

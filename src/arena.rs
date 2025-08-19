@@ -1,7 +1,15 @@
-use std::{sync::Arc, time::{Duration, Instant}};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use egui::Ui;
-use onitama::{ai::{self, AIOpponent, AsyncAI, RandomMover}, game::{Board, GameMove}, graphics::{renderer::TexHandle, GFXState}, gui::GameGraphics};
+use onitama::{
+    ai::{self, AIOpponent, AsyncAI, RandomMover},
+    game::{Board, GameMove},
+    graphics::{GFXState, renderer::TexHandle},
+    gui::GameGraphics,
+};
 use strum::{Display, EnumIter, IntoEnumIterator};
 use tinyrand::{RandRange, StdRand};
 use winit::{
@@ -33,7 +41,7 @@ struct Application<'a> {
     egui_renderer: Option<egui_wgpu::Renderer>,
     egui_state: Option<egui_winit::State>,
     gfx_state: Option<GFXState<'a>>,
-    arena: Option<Arena>
+    arena: Option<Arena>,
 }
 impl ApplicationHandler for Application<'_> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -59,8 +67,18 @@ impl ApplicationHandler for Application<'_> {
 
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
 
-        self.arena = Some(Arena::new(gfx_state.load_texture("assets/disciple.png"), gfx_state.load_texture("assets/sensei.png")));
-        self.egui_state = Some(egui_winit::State::new(egui_ctx.clone(), egui::viewport::ViewportId::ROOT, &gfx_state.window, None, None, None));
+        self.arena = Some(Arena::new(
+            gfx_state.load_texture("assets/disciple.png"),
+            gfx_state.load_texture("assets/sensei.png"),
+        ));
+        self.egui_state = Some(egui_winit::State::new(
+            egui_ctx.clone(),
+            egui::viewport::ViewportId::ROOT,
+            &gfx_state.window,
+            None,
+            None,
+            None,
+        ));
         self.egui_renderer = Some(egui_renderer);
         self.gfx_state = Some(gfx_state);
     }
@@ -70,7 +88,7 @@ impl ApplicationHandler for Application<'_> {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        let gfx_state = self.gfx_state.as_mut().unwrap();                
+        let gfx_state = self.gfx_state.as_mut().unwrap();
         let state = self.egui_state.as_mut().unwrap();
         let arena = self.arena.as_mut().unwrap();
 
@@ -80,7 +98,7 @@ impl ApplicationHandler for Application<'_> {
         match event {
             WindowEvent::RedrawRequested => {
                 const PPP: f32 = 1.0;
-                
+
                 let raw_input = state.take_egui_input(&gfx_state.window);
                 let mut leftover_rect = egui::Rect::ZERO;
                 let full_output = state.egui_ctx().run(raw_input, |ctx| {
@@ -102,7 +120,9 @@ impl ApplicationHandler for Application<'_> {
                     let game_rect = from_egui_rect(leftover_rect);
                     let game_graphics = arena.game_graphics(game_rect);
                     game_graphics.draw(&mut gfx_state.renderer, arena.red_to_move()); // Draw game
-                    gfx_state.renderer.render(&gfx_state.queue, &mut render_pass);
+                    gfx_state
+                        .renderer
+                        .render(&gfx_state.queue, &mut render_pass);
 
                     // Update egui
                     let clipped_prims = state.egui_ctx().tessellate(full_output.shapes, PPP);
@@ -110,10 +130,20 @@ impl ApplicationHandler for Application<'_> {
                         pixels_per_point: PPP,
                         size_in_pixels: [WIDTH, HEIGHT],
                     };
-                    self.egui_renderer.as_mut().unwrap().update_buffers(&gfx_state.device, &gfx_state.queue, &mut encoder, &clipped_prims, &screen_descriptor);
+                    self.egui_renderer.as_mut().unwrap().update_buffers(
+                        &gfx_state.device,
+                        &gfx_state.queue,
+                        &mut encoder,
+                        &clipped_prims,
+                        &screen_descriptor,
+                    );
                     for (id, delta) in full_output.textures_delta.set {
-                        self.egui_renderer.as_mut().unwrap()
-                            .update_texture(&gfx_state.device, &gfx_state.queue, id, &delta);
+                        self.egui_renderer.as_mut().unwrap().update_texture(
+                            &gfx_state.device,
+                            &gfx_state.queue,
+                            id,
+                            &delta,
+                        );
                     }
                     // Render egui
                     self.egui_renderer.as_ref().unwrap().render(
@@ -165,14 +195,22 @@ impl Arena {
                         .selected_text(self.ai_selection.0.to_string())
                         .show_ui(ui, |ui| {
                             for variant in AIVersion::iter() {
-                                ui.selectable_value(&mut self.ai_selection.0, variant, variant.to_string());
+                                ui.selectable_value(
+                                    &mut self.ai_selection.0,
+                                    variant,
+                                    variant.to_string(),
+                                );
                             }
                         });
                     egui::ComboBox::from_label("Blue AI")
                         .selected_text(self.ai_selection.1.to_string())
                         .show_ui(ui, |ui| {
                             for variant in AIVersion::iter() {
-                                ui.selectable_value(&mut self.ai_selection.1, variant, variant.to_string());
+                                ui.selectable_value(
+                                    &mut self.ai_selection.1,
+                                    variant,
+                                    variant.to_string(),
+                                );
                             }
                         });
                     if ui.button("Play").clicked() {
@@ -182,7 +220,8 @@ impl Arena {
                     }
                 });
                 ui.separator();
-                self.position_generation.make_ui(ui, &mut self.game, &mut self.stored_positions);
+                self.position_generation
+                    .make_ui(ui, &mut self.game, &mut self.stored_positions);
                 ui.separator();
                 ui.group(|ui| {
                     for (i, game_str) in self.stored_positions.iter().enumerate() {
@@ -193,7 +232,9 @@ impl Arena {
     }
 
     fn update_match(&mut self) {
-        if !self.ai_playing { return }
+        if !self.ai_playing {
+            return;
+        }
         let game = &mut self.game;
         let current_ai = if game.red_to_move() {
             &mut self.ai_opps.0
@@ -211,20 +252,23 @@ impl Arena {
         } else if !current_ai.is_thinking() || self.last_move_time.elapsed() > TIME_PER_MOVE {
             self.started_search = false;
             let game_move = current_ai.stop_search();
-            game.make_move(game_move.used_card, game_move.start_pos, game_move.end_pos).expect("Illegal move!");
+            game.make_move(game_move.used_card, game_move.start_pos, game_move.end_pos)
+                .expect("Illegal move!");
         }
 
-        if self.game.winner().is_some() { self.ai_playing = false }
+        if self.game.winner().is_some() {
+            self.ai_playing = false
+        }
     }
-    
+
     fn game_graphics(&self, rect: onitama::graphics::Rect) -> GameGraphics {
         GameGraphics::new(rect, &self.game, self.disciple_tex, self.sensei_tex)
     }
-    
+
     fn red_to_move(&self) -> bool {
         self.game.red_to_move()
     }
-    
+
     fn new(disciple_tex: TexHandle, sensei_tex: TexHandle) -> Self {
         Self {
             game: Board::random_cards(),
@@ -233,7 +277,10 @@ impl Arena {
             position_generation: PositionGeneration::new(),
             stored_positions: vec![],
             ai_selection: (AIVersion::Random, AIVersion::Random),
-            ai_opps: (AsyncAI::new(Arc::new(RandomMover)), AsyncAI::new(Arc::new(RandomMover))),
+            ai_opps: (
+                AsyncAI::new(Arc::new(RandomMover)),
+                AsyncAI::new(Arc::new(RandomMover)),
+            ),
             ai_playing: false,
             started_search: false,
             last_move_time: Instant::now(),
@@ -244,13 +291,13 @@ impl Arena {
 #[derive(Clone, Copy, EnumIter, Display, PartialEq)]
 enum AIVersion {
     Random,
-    MinMaxV0
+    MinMaxV0,
 }
 impl AIVersion {
     fn make_ai(&self) -> AsyncAI {
         let ai_opponent: Arc<dyn AIOpponent> = match self {
             Self::Random => Arc::new(ai::RandomMover),
-            Self::MinMaxV0 => Arc::new(ai::MinMaxV0::new(4))
+            Self::MinMaxV0 => Arc::new(ai::MinMaxV0::new(4)),
         };
         AsyncAI::new(ai_opponent)
     }
@@ -262,7 +309,10 @@ struct PositionGeneration {
 }
 impl PositionGeneration {
     fn new() -> Self {
-        Self { bulk_number: 1, rng: StdRand::default() }
+        Self {
+            bulk_number: 1,
+            rng: StdRand::default(),
+        }
     }
 
     pub fn make_ui(&mut self, ui: &mut Ui, game: &mut Board, board_positions: &mut Vec<String>) {
@@ -289,23 +339,35 @@ impl PositionGeneration {
         loop {
             board = Board::random_cards();
             for _ in 0..n {
-                let legal_moves: Vec<GameMove> = board.piece_positions().into_iter().flat_map(|pos| board.legal_moves_from_pos(pos)).collect();
+                let legal_moves: Vec<GameMove> = board
+                    .piece_positions()
+                    .into_iter()
+                    .flat_map(|pos| board.legal_moves_from_pos(pos))
+                    .collect();
                 let game_move = legal_moves[self.rng.next_range(0..legal_moves.len())].clone();
                 board.make_move_unchecked(game_move);
             }
-            if !Self::one_move_from_winning(&mut board) { break }
+            if !Self::one_move_from_winning(&mut board) {
+                break;
+            }
         }
         board
     }
 
     /// Doesn't modify board despite the mutable borrow
     fn one_move_from_winning(board: &mut Board) -> bool {
-        let legal_moves: Vec<GameMove> = board.piece_positions().into_iter().flat_map(|pos| board.legal_moves_from_pos(pos)).collect();
+        let legal_moves: Vec<GameMove> = board
+            .piece_positions()
+            .into_iter()
+            .flat_map(|pos| board.legal_moves_from_pos(pos))
+            .collect();
         for game_move in legal_moves {
             board.make_move_unchecked(game_move);
             let winning = board.winner().is_some();
             board.undo_move();
-            if winning { return true }
+            if winning {
+                return true;
+            }
         }
         false
     }
@@ -316,6 +378,6 @@ fn from_egui_rect(rect: egui::Rect) -> onitama::graphics::Rect {
     let (max_x, max_y) = (rect.right_bottom().x, rect.right_bottom().y);
     onitama::graphics::Rect {
         origin: glam::vec2(min_x, min_y),
-        size: glam::vec2(max_x - min_x, max_y - min_y)
+        size: glam::vec2(max_x - min_x, max_y - min_y),
     }
 }

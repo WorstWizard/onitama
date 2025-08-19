@@ -185,9 +185,7 @@ impl<'a> GFXState<'a> {
     }
     /// Returns command encoder, associated render pass (static lifetime) and output surface texture
     /// Mutating command encoder before render pass is finished recording is a runtime error
-    pub fn begin_render_pass(
-        &self,
-    ) -> Result<RenderingObjects, wgpu::SurfaceError> {
+    pub fn begin_render_pass(&self) -> Result<RenderingObjects, wgpu::SurfaceError> {
         let output_texture = self.surface.get_current_texture()?;
         let view = output_texture
             .texture
@@ -213,12 +211,16 @@ impl<'a> GFXState<'a> {
                 })
                 .forget_lifetime()
         };
-        Ok(RenderingObjects { encoder, render_pass, output_texture })
+        Ok(RenderingObjects {
+            encoder,
+            render_pass,
+            output_texture,
+        })
     }
 }
 
 pub struct RenderingObjects {
     pub encoder: wgpu::CommandEncoder,
     pub render_pass: wgpu::RenderPass<'static>,
-    pub output_texture: wgpu::SurfaceTexture
+    pub output_texture: wgpu::SurfaceTexture,
 }

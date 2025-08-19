@@ -211,9 +211,7 @@ impl Board {
         self.squares
             .into_iter()
             .enumerate()
-            .filter_map(|(i, opt)| {
-                opt.map(|_| Pos::from_index(i))
-            })
+            .filter_map(|(i, opt)| opt.map(|_| Pos::from_index(i)))
             .collect()
     }
 
@@ -292,7 +290,10 @@ impl Board {
 
     /// Returns all legal moves for the current player
     pub fn legal_moves(&self) -> Vec<GameMove> {
-        self.piece_positions().into_iter().flat_map(|pos| self.legal_moves_from_pos(pos)).collect()
+        self.piece_positions()
+            .into_iter()
+            .flat_map(|pos| self.legal_moves_from_pos(pos))
+            .collect()
     }
 
     pub fn squares(&self) -> &[Option<Piece>; 25] {
