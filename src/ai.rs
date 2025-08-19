@@ -1,17 +1,44 @@
+use std::time::Duration;
+
 use crate::game::*;
 use tinyrand::{Rand, RandRange, Seeded, StdRand};
 use tinyrand_std::ClockSeed;
 
 pub trait AIOpponent {
-    // fn stop_search(&mut self) -> GameMove;
-    // fn is_thinking(&self) -> bool;
+    /// Called to start a search for a move. If a time limit is specified, the bot is free to search
+    /// for an amount of time up to the time limit, otherwise the bot may search until `stop_search` is called
+    /// The time limit must still be enforced on the caller end, the parameter is just a hint for the bot (eg time left on a chess clock)
+    fn start_search(&mut self, board: Board, time_left: Option<Duration>);
+
+    /// Interrupt an ongoing search and immediately return a gamemove
+    fn stop_search(&mut self) -> GameMove;
+
+    /// Should return true while searching, false if the search has concluded (eg. if the bot chooses to search for less time than permitted)
+    fn is_thinking(&self) -> bool;
+
+    #[deprecated]
     fn suggest_move(&self, board: Board) -> GameMove {
         board.legal_moves()[0].clone()
     }
 }
 
-pub struct RandomMover {}
+#[derive(Default)]
+pub struct RandomMover {
+    board: Board
+}
 impl AIOpponent for RandomMover {
+    fn start_search(&mut self, board: Board, _time_left: Option<Duration>) {
+        self.board = board
+    }
+    fn stop_search(&mut self) -> GameMove {
+        let legal_moves = self.board.legal_moves();
+        let mut rng = StdRand::seed(ClockSeed.next_u64());
+        let i = rng.next_range(0..legal_moves.len());
+        legal_moves.into_iter().nth(i).unwrap()
+    }
+    fn is_thinking(&self) -> bool {
+        false
+    }
     fn suggest_move(&self, board: Board) -> GameMove {
         let legal_moves = board.legal_moves();
         let mut rng = StdRand::seed(ClockSeed.next_u64());
@@ -20,11 +47,19 @@ impl AIOpponent for RandomMover {
     }
 }
 
-const WIN_SCORE: i32 = i32::MAX / 2;
-pub struct MinMax {
+pub struct MinMaxV0 {
     max_depth: u32,
 }
-impl AIOpponent for MinMax {
+impl AIOpponent for MinMaxV0 {
+    fn start_search(&mut self, board: Board, time_left: Option<Duration>) {
+        todo!()
+    }
+    fn stop_search(&mut self) -> GameMove {
+        todo!()
+    }
+    fn is_thinking(&self) -> bool {
+        todo!()
+    }
     fn suggest_move(&self, mut board: Board) -> GameMove {
         let red_to_move = board.red_to_move();
         let legal_moves = board.legal_moves();
@@ -41,7 +76,7 @@ impl AIOpponent for MinMax {
         best_move.0
     }
 }
-impl MinMax {
+impl MinMaxV0 {
     pub fn new(max_depth: u32) -> Self {
         Self { max_depth }
     }
@@ -59,6 +94,8 @@ impl MinMax {
         best_eval
     }
     fn board_eval(board: &Board, red_to_move: bool) -> i32 {
+        const WIN_SCORE: i32 = i32::MAX / 2;
+
         if let Some(red_won) = board.winner() {
             if red_won == red_to_move {
                 return WIN_SCORE;

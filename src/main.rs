@@ -186,7 +186,7 @@ impl OnitamaGame {
             graphics,
             board,
             audio_player,
-            ai_opponent: RandomMover {},
+            ai_opponent: RandomMover::default(),
             last_ai_move: None,
             animator: None,
         }
