@@ -1,20 +1,56 @@
-use std::time::Duration;
+use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, thread::JoinHandle, time::Duration};
 
 use crate::game::*;
 use tinyrand::{Rand, RandRange, Seeded, StdRand};
 use tinyrand_std::ClockSeed;
 
-pub trait AIOpponent {
+pub struct AsyncAI {
+    cancel_signal: Arc<AtomicBool>,
+    thread_handle: Option<JoinHandle<GameMove>>,
+    ai_oppponent: Arc<dyn AIOpponent>,
+}
+impl AsyncAI {
+    pub fn new(ai_oppponent: Arc<dyn AIOpponent>) -> Self {
+        Self {
+            cancel_signal: Arc::new(AtomicBool::new(false)),
+            ai_oppponent,
+            thread_handle: None
+        }
+    }
+
     /// Called to start a search for a move. If a time limit is specified, the bot is free to search
     /// for an amount of time up to the time limit, otherwise the bot may search until `stop_search` is called
     /// The time limit must still be enforced on the caller end, the parameter is just a hint for the bot (eg time left on a chess clock)
-    fn start_search(&mut self, board: Board, time_left: Option<Duration>);
+    pub fn start_search(&mut self, board: Board, remaining_time: Option<Duration>) {
+        let ai_oppponent = self.ai_oppponent.clone();
+        self.cancel_signal.store(false, Ordering::Relaxed);
+        let cancel_signal = self.cancel_signal.clone();
+
+        self.thread_handle = Some(std::thread::spawn(move || {
+            ai_oppponent.search(cancel_signal, board, remaining_time)
+        }));
+    }
 
     /// Interrupt an ongoing search and immediately return a gamemove
-    fn stop_search(&mut self) -> GameMove;
+    /// Panics if the search hasn't been started first with `start_search`
+    pub fn stop_search(&mut self) -> GameMove {
+        self.cancel_signal.store(true, Ordering::Relaxed); // Signal detached thread to stop
+        self.thread_handle.take()
+            .expect("Search stopped before it was started")
+            .join() // Wait on return value
+            .expect("Search thread panicked")
+    }
 
     /// Should return true while searching, false if the search has concluded (eg. if the bot chooses to search for less time than permitted)
-    fn is_thinking(&self) -> bool;
+    pub fn is_thinking(&self) -> bool {
+        !self.cancel_signal.load(Ordering::Relaxed)
+    }
+}
+
+pub trait AIOpponent : Send + Sync {
+    /// Searches for a gamemove, must return early when the cancel signal turns true
+    /// If the search finishes early, should set the cancel signal itself, it also serves as a "finished" signal
+    fn search(&self, cancel_signal: Arc<AtomicBool>, board: Board, remaining_time: Option<Duration>) -> GameMove;
 
     #[deprecated]
     fn suggest_move(&self, board: Board) -> GameMove {
@@ -22,22 +58,12 @@ pub trait AIOpponent {
     }
 }
 
-#[derive(Default, Clone)]
-pub struct RandomMover {
-    board: Board
-}
+#[derive(Default)]
+pub struct RandomMover;
 impl AIOpponent for RandomMover {
-    fn start_search(&mut self, board: Board, _time_left: Option<Duration>) {
-        self.board = board
-    }
-    fn stop_search(&mut self) -> GameMove {
-        let legal_moves = self.board.legal_moves();
-        let mut rng = StdRand::seed(ClockSeed.next_u64());
-        let i = rng.next_range(0..legal_moves.len());
-        legal_moves.into_iter().nth(i).unwrap()
-    }
-    fn is_thinking(&self) -> bool {
-        false
+    fn search(&self, cancel_signal: Arc<AtomicBool>, board: Board, _remaining_time: Option<Duration>) -> GameMove {
+        cancel_signal.store(true, Ordering::Relaxed);
+        self.suggest_move(board)
     }
     fn suggest_move(&self, board: Board) -> GameMove {
         let legal_moves = board.legal_moves();
@@ -47,18 +73,11 @@ impl AIOpponent for RandomMover {
     }
 }
 
-#[derive(Clone)]
 pub struct MinMaxV0 {
     max_depth: u32,
 }
 impl AIOpponent for MinMaxV0 {
-    fn start_search(&mut self, board: Board, time_left: Option<Duration>) {
-        todo!()
-    }
-    fn stop_search(&mut self) -> GameMove {
-        todo!()
-    }
-    fn is_thinking(&self) -> bool {
+    fn search(&self, cancel_signal: Arc<AtomicBool>, board: Board, remaining_time: Option<Duration>) -> GameMove {
         todo!()
     }
     fn suggest_move(&self, mut board: Board) -> GameMove {

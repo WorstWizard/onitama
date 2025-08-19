@@ -1,5 +1,7 @@
+use std::{sync::Arc, time::{Duration, Instant}};
+
 use egui::Ui;
-use onitama::{ai::{self, AIOpponent}, game::{Board, GameMove}, graphics::{renderer::TexHandle, GFXState}, gui::GameGraphics};
+use onitama::{ai::{self, AIOpponent, AsyncAI, RandomMover}, game::{Board, GameMove}, graphics::{renderer::TexHandle, GFXState}, gui::GameGraphics};
 use strum::{Display, EnumIter, IntoEnumIterator};
 use tinyrand::{RandRange, StdRand};
 use winit::{
@@ -95,7 +97,8 @@ impl ApplicationHandler for Application<'_> {
                         output_texture,
                     } = gfx_state.begin_render_pass().expect("surface error");
 
-                    // Render game
+                    // Update & render game
+                    arena.update_match();
                     let game_rect = from_egui_rect(leftover_rect);
                     let game_graphics = arena.game_graphics(game_rect);
                     game_graphics.draw(&mut gfx_state.renderer, arena.red_to_move()); // Draw game
@@ -145,8 +148,11 @@ struct Arena {
     sensei_tex: TexHandle,
     position_generation: PositionGeneration,
     stored_positions: Vec<String>,
-    ai_selection: (Bot, Bot), // Selected indices in bot list
-    ai_opps: (Box<dyn AIOpponent>,Box<dyn AIOpponent>), // red and blue
+    ai_selection: (AIVersion, AIVersion),
+    ai_opps: (AsyncAI, AsyncAI), // red and blue
+    ai_playing: bool,
+    started_search: bool,
+    last_move_time: Instant,
 }
 impl Arena {
     fn make_ui(&mut self, ctx: &egui::Context) {
@@ -154,24 +160,27 @@ impl Arena {
             .resizable(true)
             .show(ctx, |ui| {
                 ui.label("AI match");
-                egui::ComboBox::from_label("Red AI")
-                    .selected_text(self.ai_selection.0.to_string())
-                    .show_ui(ui, |ui| {
-                        for variant in Bot::iter() {
-                            ui.selectable_value(&mut self.ai_selection.0, variant, variant.to_string());
-                        }
-                    });
-                egui::ComboBox::from_label("Blue AI")
-                    .selected_text(self.ai_selection.1.to_string())
-                    .show_ui(ui, |ui| {
-                        for variant in Bot::iter() {
-                            ui.selectable_value(&mut self.ai_selection.1, variant, variant.to_string());
-                        }
-                    });
-                if ui.button("Play").clicked() {
-                    self.ai_opps.0 = self.ai_selection.0.make_ai();
-                    self.ai_opps.1 = self.ai_selection.1.make_ai();
-                }
+                ui.add_enabled_ui(!self.ai_playing, |ui| {
+                    egui::ComboBox::from_label("Red AI")
+                        .selected_text(self.ai_selection.0.to_string())
+                        .show_ui(ui, |ui| {
+                            for variant in AIVersion::iter() {
+                                ui.selectable_value(&mut self.ai_selection.0, variant, variant.to_string());
+                            }
+                        });
+                    egui::ComboBox::from_label("Blue AI")
+                        .selected_text(self.ai_selection.1.to_string())
+                        .show_ui(ui, |ui| {
+                            for variant in AIVersion::iter() {
+                                ui.selectable_value(&mut self.ai_selection.1, variant, variant.to_string());
+                            }
+                        });
+                    if ui.button("Play").clicked() {
+                        self.ai_opps.0 = self.ai_selection.0.make_ai();
+                        self.ai_opps.1 = self.ai_selection.1.make_ai();
+                        self.ai_playing = true;
+                    }
+                });
                 ui.separator();
                 self.position_generation.make_ui(ui, &mut self.game, &mut self.stored_positions);
                 ui.separator();
@@ -181,6 +190,31 @@ impl Arena {
                     }
                 })
             });
+    }
+
+    fn update_match(&mut self) {
+        if !self.ai_playing { return }
+        let game = &mut self.game;
+        let current_ai = if game.red_to_move() {
+            &mut self.ai_opps.0
+        } else {
+            &mut self.ai_opps.1
+        };
+        const TIME_PER_MOVE: Duration = Duration::from_millis(2000);
+
+        // Start a search for a move
+        if !self.started_search {
+            self.started_search = true;
+            self.last_move_time = Instant::now();
+            current_ai.start_search(game.clone(), None);
+        // Stop search, get next move
+        } else if !current_ai.is_thinking() || self.last_move_time.elapsed() > TIME_PER_MOVE {
+            self.started_search = false;
+            let game_move = current_ai.stop_search();
+            game.make_move(game_move.used_card, game_move.start_pos, game_move.end_pos).expect("Illegal move!");
+        }
+
+        if self.game.winner().is_some() { self.ai_playing = false }
     }
     
     fn game_graphics(&self, rect: onitama::graphics::Rect) -> GameGraphics {
@@ -198,23 +232,27 @@ impl Arena {
             sensei_tex,
             position_generation: PositionGeneration::new(),
             stored_positions: vec![],
-            ai_selection: (Bot::Random, Bot::Random),
-            ai_opps: (Box::new(ai::RandomMover::default()), Box::new(ai::RandomMover::default())),
+            ai_selection: (AIVersion::Random, AIVersion::Random),
+            ai_opps: (AsyncAI::new(Arc::new(RandomMover)), AsyncAI::new(Arc::new(RandomMover))),
+            ai_playing: false,
+            started_search: false,
+            last_move_time: Instant::now(),
         }
     }
 }
 
 #[derive(Clone, Copy, EnumIter, Display, PartialEq)]
-enum Bot {
+enum AIVersion {
     Random,
     MinMaxV0
 }
-impl Bot {
-    fn make_ai(&self) -> Box<dyn AIOpponent> {
-        match self {
-            Self::Random => Box::new(ai::RandomMover::default()),
-            Self::MinMaxV0 => Box::new(ai::MinMaxV0::new(4))
-        }
+impl AIVersion {
+    fn make_ai(&self) -> AsyncAI {
+        let ai_opponent: Arc<dyn AIOpponent> = match self {
+            Self::Random => Arc::new(ai::RandomMover),
+            Self::MinMaxV0 => Arc::new(ai::MinMaxV0::new(4))
+        };
+        AsyncAI::new(ai_opponent)
     }
 }
 
