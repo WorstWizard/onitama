@@ -207,6 +207,15 @@ impl Board {
             })
             .collect()
     }
+    pub fn piece_positions(&self) -> Vec<Pos> {
+        self.squares
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, opt)| {
+                opt.map(|_| Pos::from_index(i))
+            })
+            .collect()
+    }
 
     /// Undo the previous move
     pub fn undo_move(&mut self) {

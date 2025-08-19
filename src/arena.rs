@@ -1,5 +1,6 @@
 use egui::Ui;
-use onitama::{ai::{self, AIOpponent}, game::Board, graphics::{renderer::TexHandle, GFXState}, gui::GameGraphics};
+use onitama::{ai::{self, AIOpponent}, game::{Board, GameMove}, graphics::{renderer::TexHandle, GFXState}, gui::GameGraphics};
+use tinyrand::{RandRange, StdRand};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -138,15 +139,17 @@ impl ApplicationHandler for Application<'_> {
 }
 
 struct Arena {
-    position_generation: PositionGeneration,
     game: Board,
     disciple_tex: TexHandle,
-    sensei_tex: TexHandle
+    sensei_tex: TexHandle,
+    position_generation: PositionGeneration,
+    stored_positions: Vec<String>,
 }
+    
 impl Arena {
     fn make_ui(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("left panel")
-            .resizable(false)
+            .resizable(true)
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
                     if ui.button("Next move").clicked() {
@@ -156,7 +159,13 @@ impl Arena {
                     }
                 });
                 ui.separator();
-                self.position_generation.make_ui(ui);
+                self.position_generation.make_ui(ui, &mut self.game, &mut self.stored_positions);
+                ui.separator();
+                ui.group(|ui| {
+                    for (i, game_str) in self.stored_positions.iter().enumerate() {
+                        ui.label(i.to_string() + ": " + game_str);
+                    }
+                })
             });
     }
     
@@ -169,29 +178,68 @@ impl Arena {
     }
     
     fn new(disciple_tex: TexHandle, sensei_tex: TexHandle) -> Self {
-        Self { position_generation: PositionGeneration::new(), game: Board::random_cards(), disciple_tex, sensei_tex }
+        Self {
+            game: Board::random_cards(),
+            disciple_tex,
+            sensei_tex,
+            position_generation: PositionGeneration::new(),
+            stored_positions: vec![]
+        }
     }
 }
 
 struct PositionGeneration {
     bulk_number: u32,
+    rng: StdRand,
 }
 impl PositionGeneration {
     fn new() -> Self {
-        Self { bulk_number: 1 }
+        Self { bulk_number: 1, rng: StdRand::default() }
     }
 
-    pub fn make_ui(&mut self, ui: &mut Ui) {
+    pub fn make_ui(&mut self, ui: &mut Ui, game: &mut Board, board_positions: &mut Vec<String>) {
         ui.label("Starting position suite");
         if ui.button("Random position").clicked() {
-            println!("make a thing");
+            *game = self.generate_random_position();
+            board_positions.push(game.save_game(false));
         }
         ui.horizontal(|ui| {
             if ui.button("Bulk generate").clicked() {
-                println!("make a lot of thing");
+                for _ in 0..self.bulk_number {
+                    *game = self.generate_random_position();
+                    board_positions.push(game.save_game(false));
+                }
             }
             ui.add(egui::DragValue::new(&mut self.bulk_number).range(1..=1000));
         });
+    }
+
+    fn generate_random_position(&mut self) -> Board {
+        const MAX_MOVES: u32 = 10;
+        let n = self.rng.next_range(0..MAX_MOVES);
+        let mut board;
+        loop {
+            board = Board::random_cards();
+            for _ in 0..n {
+                let legal_moves: Vec<GameMove> = board.piece_positions().into_iter().flat_map(|pos| board.legal_moves_from_pos(pos)).collect();
+                let game_move = legal_moves[self.rng.next_range(0..legal_moves.len())].clone();
+                board.make_move_unchecked(game_move);
+            }
+            if !Self::one_move_from_winning(&mut board) { break }
+        }
+        board
+    }
+
+    /// Doesn't modify board despite the mutable borrow
+    fn one_move_from_winning(board: &mut Board) -> bool {
+        let legal_moves: Vec<GameMove> = board.piece_positions().into_iter().flat_map(|pos| board.legal_moves_from_pos(pos)).collect();
+        for game_move in legal_moves {
+            board.make_move_unchecked(game_move);
+            let winning = board.winner().is_some();
+            board.undo_move();
+            if winning { return true }
+        }
+        false
     }
 }
 
