@@ -3,16 +3,17 @@ use tinyrand::{Rand, RandRange, Seeded, StdRand};
 use tinyrand_std::ClockSeed;
 
 pub trait AIOpponent {
-    fn suggest_move(&self, board: Board, red_to_move: bool) -> GameMove;
+    // fn stop_search(&mut self) -> GameMove;
+    // fn is_thinking(&self) -> bool;
+    fn suggest_move(&self, board: Board) -> GameMove {
+        board.legal_moves()[0].clone()
+    }
 }
 
 pub struct RandomMover {}
 impl AIOpponent for RandomMover {
-    fn suggest_move(&self, board: Board, red_to_move: bool) -> GameMove {
-        let legal_moves = get_legal_moves(&board, red_to_move);
-        // for game_move in &legal_moves {
-        //     println!("{:?}", game_move.end_pos);
-        // }
+    fn suggest_move(&self, board: Board) -> GameMove {
+        let legal_moves = board.legal_moves();
         let mut rng = StdRand::seed(ClockSeed.next_u64());
         let i = rng.next_range(0..legal_moves.len());
         legal_moves.into_iter().nth(i).unwrap()
@@ -24,8 +25,9 @@ pub struct MinMax {
     max_depth: u32,
 }
 impl AIOpponent for MinMax {
-    fn suggest_move(&self, mut board: Board, red_to_move: bool) -> GameMove {
-        let legal_moves = get_legal_moves(&board, red_to_move);
+    fn suggest_move(&self, mut board: Board) -> GameMove {
+        let red_to_move = board.red_to_move();
+        let legal_moves = board.legal_moves();
         let mut best_move = (legal_moves[0].clone(), i32::MIN);
         for candidate_move in legal_moves {
             board.make_move_unchecked(candidate_move.clone());
@@ -47,9 +49,8 @@ impl MinMax {
         if depth == self.max_depth || board.winner().is_some() {
             return Self::board_eval(board, red_to_move);
         }
-        let legal_moves = get_legal_moves(board, red_to_move);
         let mut best_eval = i32::MIN;
-        for candidate_move in legal_moves {
+        for candidate_move in board.legal_moves() {
             board.make_move_unchecked(candidate_move.clone());
             let eval = -self.minmax(board, !red_to_move, depth + 1);
             best_eval = best_eval.max(eval);
@@ -75,16 +76,4 @@ impl MinMax {
         }
         piece_val_sum
     }
-}
-
-fn get_legal_moves(board: &Board, red_to_move: bool) -> Vec<GameMove> {
-    let my_piece_positions = if red_to_move {
-        board.red_positions()
-    } else {
-        board.blue_positions()
-    };
-    my_piece_positions
-        .iter()
-        .flat_map(|pos| board.legal_moves_from_pos(*pos))
-        .collect()
 }

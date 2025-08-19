@@ -154,7 +154,7 @@ impl Arena {
                 ui.vertical(|ui| {
                     if ui.button("Next move").clicked() {
                         let ai = ai::RandomMover{};
-                        let game_move = ai.suggest_move(self.game.clone(), self.red_to_move());
+                        let game_move = ai.suggest_move(self.game.clone());
                         self.game.make_move_unchecked(game_move);
                     }
                 });

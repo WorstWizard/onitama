@@ -217,7 +217,7 @@ impl OnitamaGame {
             }
             true
         } else {
-            let ai_move = self.ai_opponent.suggest_move(self.board.clone(), false);
+            let ai_move = self.ai_opponent.suggest_move(self.board.clone());
             self.last_ai_move = Some(ai_move.clone());
 
             // Start animation

@@ -290,6 +290,11 @@ impl Board {
         legal_moves
     }
 
+    /// Returns all legal moves for the current player
+    pub fn legal_moves(&self) -> Vec<GameMove> {
+        self.piece_positions().into_iter().flat_map(|pos| self.legal_moves_from_pos(pos)).collect()
+    }
+
     pub fn squares(&self) -> &[Option<Piece>; 25] {
         &self.squares
     }
