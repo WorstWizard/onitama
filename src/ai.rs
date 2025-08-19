@@ -22,7 +22,7 @@ pub trait AIOpponent {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RandomMover {
     board: Board
 }
@@ -47,6 +47,7 @@ impl AIOpponent for RandomMover {
     }
 }
 
+#[derive(Clone)]
 pub struct MinMaxV0 {
     max_depth: u32,
 }

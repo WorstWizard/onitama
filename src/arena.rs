@@ -1,5 +1,6 @@
 use egui::Ui;
 use onitama::{ai::{self, AIOpponent}, game::{Board, GameMove}, graphics::{renderer::TexHandle, GFXState}, gui::GameGraphics};
+use strum::{Display, EnumIter, IntoEnumIterator};
 use tinyrand::{RandRange, StdRand};
 use winit::{
     application::ApplicationHandler,
@@ -144,20 +145,33 @@ struct Arena {
     sensei_tex: TexHandle,
     position_generation: PositionGeneration,
     stored_positions: Vec<String>,
+    ai_selection: (Bot, Bot), // Selected indices in bot list
+    ai_opps: (Box<dyn AIOpponent>,Box<dyn AIOpponent>), // red and blue
 }
-    
 impl Arena {
     fn make_ui(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("left panel")
             .resizable(true)
             .show(ctx, |ui| {
-                ui.vertical(|ui| {
-                    if ui.button("Next move").clicked() {
-                        let ai = ai::RandomMover::default();
-                        let game_move = ai.suggest_move(self.game.clone());
-                        self.game.make_move_unchecked(game_move);
-                    }
-                });
+                ui.label("AI match");
+                egui::ComboBox::from_label("Red AI")
+                    .selected_text(self.ai_selection.0.to_string())
+                    .show_ui(ui, |ui| {
+                        for variant in Bot::iter() {
+                            ui.selectable_value(&mut self.ai_selection.0, variant, variant.to_string());
+                        }
+                    });
+                egui::ComboBox::from_label("Blue AI")
+                    .selected_text(self.ai_selection.1.to_string())
+                    .show_ui(ui, |ui| {
+                        for variant in Bot::iter() {
+                            ui.selectable_value(&mut self.ai_selection.1, variant, variant.to_string());
+                        }
+                    });
+                if ui.button("Play").clicked() {
+                    self.ai_opps.0 = self.ai_selection.0.make_ai();
+                    self.ai_opps.1 = self.ai_selection.1.make_ai();
+                }
                 ui.separator();
                 self.position_generation.make_ui(ui, &mut self.game, &mut self.stored_positions);
                 ui.separator();
@@ -183,7 +197,23 @@ impl Arena {
             disciple_tex,
             sensei_tex,
             position_generation: PositionGeneration::new(),
-            stored_positions: vec![]
+            stored_positions: vec![],
+            ai_selection: (Bot::Random, Bot::Random),
+            ai_opps: (Box::new(ai::RandomMover::default()), Box::new(ai::RandomMover::default())),
+        }
+    }
+}
+
+#[derive(Clone, Copy, EnumIter, Display, PartialEq)]
+enum Bot {
+    Random,
+    MinMaxV0
+}
+impl Bot {
+    fn make_ai(&self) -> Box<dyn AIOpponent> {
+        match self {
+            Self::Random => Box::new(ai::RandomMover::default()),
+            Self::MinMaxV0 => Box::new(ai::MinMaxV0::new(4))
         }
     }
 }
