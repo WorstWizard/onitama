@@ -1,4 +1,5 @@
 use std::{
+    io::{BufRead, Write},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -194,6 +195,15 @@ impl Arena {
             .default_width(300.0)
             .show(ctx, |ui| {
                 ui.add_enabled_ui(!self.ai_playing, |ui| {
+                    let (red_wins, blue_wins) =
+                        self.stored_matches
+                            .iter()
+                            .fold((0, 0), |mut acc, (_, winner)| {
+                                winner.map(|red_won| if red_won { acc.0 += 1 } else { acc.1 += 1 });
+                                acc
+                            });
+                    ui.label(format!("Red: {red_wins} - Blue: {blue_wins}"));
+                    ui.separator();
                     ui.label("AI match");
                     egui::ComboBox::from_label("Red AI")
                         .selected_text(self.ai_selection.0.to_string())
@@ -220,7 +230,9 @@ impl Arena {
                     if ui.button("Play").clicked() {
                         self.ai_opps.0 = self.ai_selection.0.make_ai();
                         self.ai_opps.1 = self.ai_selection.1.make_ai();
-                        self.game = Board::load_game(&self.stored_matches[self.current_match_index].0).unwrap();
+                        self.game =
+                            Board::load_game(&self.stored_matches[self.current_match_index].0)
+                                .unwrap();
                         self.ai_playing = true;
                     }
                     if ui.button("Play All").clicked() {
@@ -232,8 +244,12 @@ impl Arena {
                         self.play_all_matches = true;
                     }
                     ui.separator();
-                    self.position_generation
-                        .make_ui(ui, &mut self.game, &mut self.stored_matches, &mut self.current_match_index);
+                    self.position_generation.make_ui(
+                        ui,
+                        &mut self.game,
+                        &mut self.stored_matches,
+                        &mut self.current_match_index,
+                    );
                 });
             });
     }
@@ -265,7 +281,7 @@ impl Arena {
 
         if game.winner().is_some() {
             self.stored_matches[self.current_match_index].1 = game.winner();
-            
+
             if self.play_all_matches && self.current_match_index < self.stored_matches.len() {
                 self.current_match_index += 1;
                 if self.current_match_index == self.stored_matches.len() {
@@ -273,7 +289,8 @@ impl Arena {
                     self.ai_playing = false;
                     self.play_all_matches = false;
                 } else {
-                    *game = Board::load_game(&self.stored_matches[self.current_match_index].0).unwrap();
+                    *game =
+                        Board::load_game(&self.stored_matches[self.current_match_index].0).unwrap();
                 }
             } else {
                 self.ai_playing = false;
@@ -339,13 +356,19 @@ impl PositionGeneration {
         }
     }
 
-    pub fn make_ui(&mut self, ui: &mut Ui, game: &mut Board, stored_matches: &mut Vec<Match>, current_match_index: &mut usize) {
+    pub fn make_ui(
+        &mut self,
+        ui: &mut Ui,
+        game: &mut Board,
+        stored_matches: &mut Vec<Match>,
+        current_match_index: &mut usize,
+    ) {
         let mut generate_match = |new_board: Board| {
             *game = new_board;
             *current_match_index = stored_matches.len();
             stored_matches.push((game.save_game(false), None));
         };
-        ui.label("Starting position suite");
+        ui.label("Starting positions");
         if ui.button("Random position").clicked() {
             generate_match(self.generate_random_position());
         }
@@ -357,11 +380,25 @@ impl PositionGeneration {
             }
             ui.add(egui::DragValue::new(&mut self.bulk_number).range(1..=1000));
         });
+        ui.label("Pregenerated matches");
+        ui.horizontal(|ui| {
+            if ui.button("Load").clicked() {
+                *stored_matches = load_matches_from_file();
+                *current_match_index = 0;
+                *game = Board::load_game(&stored_matches[0].0).unwrap();
+            }
+            if ui.button("Save").clicked() {
+                save_matches_to_file(stored_matches);
+            }
+        });
         ui.group(|ui| {
             for (i, (game_str, winner)) in stored_matches.iter().enumerate() {
                 match winner {
                     Some(true) => ui.visuals_mut().override_text_color = Some(egui::Color32::RED),
-                    Some(false) => ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(60, 60, 255)),
+                    Some(false) => {
+                        ui.visuals_mut().override_text_color =
+                            Some(egui::Color32::from_rgb(60, 60, 255))
+                    }
                     None => ui.reset_style(),
                 }
 
@@ -415,6 +452,28 @@ impl PositionGeneration {
             }
         }
         false
+    }
+}
+
+const PREGEN_PATH: &str = "assets/arena_pregens.oni.txt";
+fn load_matches_from_file() -> Vec<(String, Option<bool>)> {
+    let reader = std::io::BufReader::new(
+        std::fs::File::open(PREGEN_PATH).expect("failed to open pregens file"),
+    );
+    let mut out = vec![];
+    for line in reader.lines() {
+        out.push((line.expect("failed to read line"), None));
+    }
+    out
+}
+fn save_matches_to_file(matches: &[Match]) {
+    let mut writer = std::io::BufWriter::new(
+        std::fs::File::create(PREGEN_PATH).expect("failed to open pregens file"),
+    );
+    for (game_str, _) in matches {
+        writer
+            .write_fmt(format_args!("{game_str}\n"))
+            .expect("failed to write line");
     }
 }
 
