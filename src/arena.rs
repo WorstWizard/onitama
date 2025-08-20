@@ -187,8 +187,32 @@ struct Arena {
     play_all_matches: bool,
     started_search: bool,
     last_move_time: Instant,
+    time_per_move_ms: u64,
 }
 impl Arena {
+    fn new(disciple_tex: TexHandle, sensei_tex: TexHandle) -> Self {
+        let game = Board::random_cards();
+        let game_str = game.save_game(false);
+        Self {
+            game,
+            disciple_tex,
+            sensei_tex,
+            position_generation: PositionGeneration::new(),
+            stored_matches: vec![(game_str, None)],
+            current_match_index: 0,
+            ai_selection: (AIVersion::Random, AIVersion::Random),
+            ai_opps: (
+                AsyncAI::new(Arc::new(RandomMover)),
+                AsyncAI::new(Arc::new(RandomMover)),
+            ),
+            ai_playing: false,
+            play_all_matches: false,
+            started_search: false,
+            last_move_time: Instant::now(),
+            time_per_move_ms: 100,
+        }
+    }
+
     fn make_ui(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("left panel")
             .resizable(true)
@@ -227,22 +251,32 @@ impl Arena {
                                 );
                             }
                         });
-                    if ui.button("Play").clicked() {
-                        self.ai_opps.0 = self.ai_selection.0.make_ai();
-                        self.ai_opps.1 = self.ai_selection.1.make_ai();
-                        self.game =
-                            Board::load_game(&self.stored_matches[self.current_match_index].0)
-                                .unwrap();
-                        self.ai_playing = true;
-                    }
-                    if ui.button("Play All").clicked() {
-                        self.ai_opps.0 = self.ai_selection.0.make_ai();
-                        self.ai_opps.1 = self.ai_selection.1.make_ai();
-                        self.current_match_index = 0;
-                        self.game = Board::load_game(&self.stored_matches[0].0).unwrap();
-                        self.ai_playing = true;
-                        self.play_all_matches = true;
-                    }
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::DragValue::new(&mut self.time_per_move_ms)
+                                .suffix("ms")
+                                .range(0..=10_000),
+                        );
+                        ui.label("Time per move");
+                    });
+                    ui.horizontal(|ui| {
+                        if ui.button("Play").clicked() {
+                            self.ai_opps.0 = self.ai_selection.0.make_ai();
+                            self.ai_opps.1 = self.ai_selection.1.make_ai();
+                            self.game =
+                                Board::load_game(&self.stored_matches[self.current_match_index].0)
+                                    .unwrap();
+                            self.ai_playing = true;
+                        }
+                        if ui.button("Play All").clicked() {
+                            self.ai_opps.0 = self.ai_selection.0.make_ai();
+                            self.ai_opps.1 = self.ai_selection.1.make_ai();
+                            self.current_match_index = 0;
+                            self.game = Board::load_game(&self.stored_matches[0].0).unwrap();
+                            self.ai_playing = true;
+                            self.play_all_matches = true;
+                        }
+                    });
                     ui.separator();
                     self.position_generation.make_ui(
                         ui,
@@ -264,7 +298,6 @@ impl Arena {
         } else {
             &mut self.ai_opps.1
         };
-        const TIME_PER_MOVE: Duration = Duration::from_millis(2000);
 
         // Start a search for a move
         if !self.started_search {
@@ -272,7 +305,9 @@ impl Arena {
             self.last_move_time = Instant::now();
             current_ai.start_search(game.clone(), None);
         // Stop search, get next move
-        } else if !current_ai.is_thinking() || self.last_move_time.elapsed() > TIME_PER_MOVE {
+        } else if !current_ai.is_thinking()
+            || self.last_move_time.elapsed() > Duration::from_millis(self.time_per_move_ms)
+        {
             self.started_search = false;
             let game_move = current_ai.stop_search();
             game.make_move(game_move.used_card, game_move.start_pos, game_move.end_pos)
@@ -305,28 +340,6 @@ impl Arena {
     fn red_to_move(&self) -> bool {
         self.game.red_to_move()
     }
-
-    fn new(disciple_tex: TexHandle, sensei_tex: TexHandle) -> Self {
-        let game = Board::random_cards();
-        let game_str = game.save_game(false);
-        Self {
-            game,
-            disciple_tex,
-            sensei_tex,
-            position_generation: PositionGeneration::new(),
-            stored_matches: vec![(game_str, None)],
-            current_match_index: 0,
-            ai_selection: (AIVersion::Random, AIVersion::Random),
-            ai_opps: (
-                AsyncAI::new(Arc::new(RandomMover)),
-                AsyncAI::new(Arc::new(RandomMover)),
-            ),
-            ai_playing: false,
-            play_all_matches: false,
-            started_search: false,
-            last_move_time: Instant::now(),
-        }
-    }
 }
 
 #[derive(Clone, Copy, EnumIter, Display, PartialEq)]
@@ -338,7 +351,7 @@ impl AIVersion {
     fn make_ai(&self) -> AsyncAI {
         let ai_opponent: Arc<dyn AIOpponent> = match self {
             Self::Random => Arc::new(ai::RandomMover),
-            Self::MinMaxV0 => Arc::new(ai::MinMaxV0::new(4)),
+            Self::MinMaxV0 => Arc::new(ai::MinMaxV0::default()),
         };
         AsyncAI::new(ai_opponent)
     }

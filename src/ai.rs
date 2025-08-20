@@ -81,9 +81,6 @@ impl AIOpponent for RandomMover {
         _remaining_time: Option<Duration>,
     ) -> GameMove {
         cancel_signal.store(true, Ordering::Relaxed);
-        self.suggest_move(board)
-    }
-    fn suggest_move(&self, board: Board) -> GameMove {
         let legal_moves = board.legal_moves();
         let mut rng = StdRand::seed(ClockSeed.next_u64());
         let i = rng.next_range(0..legal_moves.len());
@@ -98,41 +95,61 @@ impl AIOpponent for MinMaxV0 {
     fn search(
         &self,
         cancel_signal: Arc<AtomicBool>,
-        board: Board,
-        remaining_time: Option<Duration>,
+        mut board: Board,
+        _remaining_time: Option<Duration>,
     ) -> GameMove {
-        todo!()
-    }
-    fn suggest_move(&self, mut board: Board) -> GameMove {
         let red_to_move = board.red_to_move();
         let legal_moves = board.legal_moves();
         let mut best_move = (legal_moves[0].clone(), i32::MIN);
         for candidate_move in legal_moves {
             board.make_move_unchecked(candidate_move.clone());
-            let eval = -self.minmax(&mut board, !red_to_move, 1);
-            if eval > best_move.1 {
+            let eval = -self.minmax(&cancel_signal, &mut board, !red_to_move, 1);
+            if eval > best_move.1 && !cancel_signal.load(Ordering::Relaxed) {
                 best_move = (candidate_move, eval)
             }
             board.undo_move();
         }
-        // println!("AI moves {:?} to {:?}, evaluation {}", best_move.0.start_pos, best_move.0.end_pos, best_move.1);
+        // if cancel_signal.load(Ordering::Relaxed) {
+        //     println!("search was cancelled");
+        // } else {
+        //     println!("completed search");
+        // }
+        // Signal that we're finished
+        cancel_signal.store(true, Ordering::Relaxed);
         best_move.0
+    }
+}
+impl Default for MinMaxV0 {
+    fn default() -> Self {
+        Self { max_depth: 5 }
     }
 }
 impl MinMaxV0 {
     pub fn new(max_depth: u32) -> Self {
         Self { max_depth }
     }
-    fn minmax(&self, board: &mut Board, red_to_move: bool, depth: u32) -> i32 {
+    fn minmax(
+        &self,
+        cancel_signal: &Arc<AtomicBool>,
+        board: &mut Board,
+        red_to_move: bool,
+        depth: u32,
+    ) -> i32 {
         if depth == self.max_depth || board.winner().is_some() {
             return Self::board_eval(board, red_to_move);
         }
         let mut best_eval = i32::MIN;
         for candidate_move in board.legal_moves() {
-            board.make_move_unchecked(candidate_move.clone());
-            let eval = -self.minmax(board, !red_to_move, depth + 1);
-            best_eval = best_eval.max(eval);
+            board.make_move_unchecked(candidate_move);
+            let eval = -self.minmax(cancel_signal, board, !red_to_move, depth + 1);
             board.undo_move();
+            best_eval = best_eval.max(eval);
+
+            // If search is cancelled, leave immediately, assume this move is bad since we can't guarantee the quality
+            // Have to do the check *after* the minmax call, to avoid the zero leaking into the real evaluation
+            if cancel_signal.load(Ordering::Relaxed) {
+                return 0;
+            }
         }
         best_eval
     }

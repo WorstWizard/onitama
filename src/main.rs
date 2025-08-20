@@ -1,9 +1,9 @@
 use std::error::Error;
 use std::fs::File;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use glam::{Vec2, vec2};
-use onitama::ai::{AIOpponent, RandomMover};
+use onitama::ai::{AsyncAI, MinMaxV0};
 use onitama::game::{Board, GameMove};
 use onitama::graphics::{GFXState, Rect};
 use onitama::gui::GameGraphics;
@@ -18,6 +18,7 @@ use winit::window::Window;
 const WIDTH: u32 = 1200;
 const HEIGHT: u32 = 800;
 const ANIM_TIME: f32 = 0.25;
+const MAX_AI_MOVE_TIME: Duration = Duration::from_millis(1000);
 
 #[derive(Clone)]
 pub struct Inputs {
@@ -175,7 +176,7 @@ pub struct OnitamaGame {
     pub graphics: GameGraphics,
     pub board: Board,
     audio_player: Option<AudioPlayer>,
-    ai_opponent: RandomMover,
+    ai_opponent: AsyncAI,
     last_ai_move: Option<GameMove>,
     animator: Option<MoveAnimator>,
 }
@@ -186,7 +187,7 @@ impl OnitamaGame {
             graphics,
             board,
             audio_player,
-            ai_opponent: RandomMover,
+            ai_opponent: AsyncAI::new(std::sync::Arc::new(MinMaxV0::new(6))),
             last_ai_move: None,
             animator: None,
         }
@@ -217,7 +218,13 @@ impl OnitamaGame {
             }
             true
         } else {
-            let ai_move = self.ai_opponent.suggest_move(self.board.clone());
+            // Blocks, but that's fine for now, nothing's happening on-screen while the AI thinks anyway
+            self.ai_opponent.start_search(self.board.clone(), None);
+            let search_start_time = Instant::now();
+            while self.ai_opponent.is_thinking() && search_start_time.elapsed() < MAX_AI_MOVE_TIME {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            let ai_move = self.ai_opponent.stop_search();
             self.last_ai_move = Some(ai_move.clone());
 
             // Start animation
