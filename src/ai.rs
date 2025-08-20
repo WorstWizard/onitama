@@ -27,7 +27,7 @@ impl AsyncAI {
 
     /// Called to start a search for a move. If a time limit is specified, the bot is free to search
     /// for an amount of time up to the time limit, otherwise the bot may search until `stop_search` is called
-    /// The time limit must still be enforced on the caller end, the parameter is just a hint for the bot (eg time left on a chess clock)
+    /// The time limit must still be enforced on the caller end using `stop_search`, the parameter is just a hint for the bot (eg time left on a chess clock)
     pub fn start_search(&mut self, board: Board, remaining_time: Option<Duration>) {
         let ai_oppponent = self.ai_oppponent.clone();
         self.cancel_signal.store(false, Ordering::Relaxed);

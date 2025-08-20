@@ -172,15 +172,18 @@ impl ApplicationHandler for Application<'_> {
     }
 }
 
+type Match = (String, Option<bool>);
 struct Arena {
     game: Board,
     disciple_tex: TexHandle,
     sensei_tex: TexHandle,
     position_generation: PositionGeneration,
-    stored_positions: Vec<String>,
+    stored_matches: Vec<Match>,
+    current_match_index: usize,
     ai_selection: (AIVersion, AIVersion),
     ai_opps: (AsyncAI, AsyncAI), // red and blue
     ai_playing: bool,
+    play_all_matches: bool,
     started_search: bool,
     last_move_time: Instant,
 }
@@ -188,9 +191,10 @@ impl Arena {
     fn make_ui(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("left panel")
             .resizable(true)
+            .default_width(300.0)
             .show(ctx, |ui| {
-                ui.label("AI match");
                 ui.add_enabled_ui(!self.ai_playing, |ui| {
+                    ui.label("AI match");
                     egui::ComboBox::from_label("Red AI")
                         .selected_text(self.ai_selection.0.to_string())
                         .show_ui(ui, |ui| {
@@ -216,18 +220,21 @@ impl Arena {
                     if ui.button("Play").clicked() {
                         self.ai_opps.0 = self.ai_selection.0.make_ai();
                         self.ai_opps.1 = self.ai_selection.1.make_ai();
+                        self.game = Board::load_game(&self.stored_matches[self.current_match_index].0).unwrap();
                         self.ai_playing = true;
                     }
-                });
-                ui.separator();
-                self.position_generation
-                    .make_ui(ui, &mut self.game, &mut self.stored_positions);
-                ui.separator();
-                ui.group(|ui| {
-                    for (i, game_str) in self.stored_positions.iter().enumerate() {
-                        ui.label(i.to_string() + ": " + game_str);
+                    if ui.button("Play All").clicked() {
+                        self.ai_opps.0 = self.ai_selection.0.make_ai();
+                        self.ai_opps.1 = self.ai_selection.1.make_ai();
+                        self.current_match_index = 0;
+                        self.game = Board::load_game(&self.stored_matches[0].0).unwrap();
+                        self.ai_playing = true;
+                        self.play_all_matches = true;
                     }
-                })
+                    ui.separator();
+                    self.position_generation
+                        .make_ui(ui, &mut self.game, &mut self.stored_matches, &mut self.current_match_index);
+                });
             });
     }
 
@@ -256,8 +263,21 @@ impl Arena {
                 .expect("Illegal move!");
         }
 
-        if self.game.winner().is_some() {
-            self.ai_playing = false
+        if game.winner().is_some() {
+            self.stored_matches[self.current_match_index].1 = game.winner();
+            
+            if self.play_all_matches && self.current_match_index < self.stored_matches.len() {
+                self.current_match_index += 1;
+                if self.current_match_index == self.stored_matches.len() {
+                    self.current_match_index -= 1;
+                    self.ai_playing = false;
+                    self.play_all_matches = false;
+                } else {
+                    *game = Board::load_game(&self.stored_matches[self.current_match_index].0).unwrap();
+                }
+            } else {
+                self.ai_playing = false;
+            }
         }
     }
 
@@ -270,18 +290,22 @@ impl Arena {
     }
 
     fn new(disciple_tex: TexHandle, sensei_tex: TexHandle) -> Self {
+        let game = Board::random_cards();
+        let game_str = game.save_game(false);
         Self {
-            game: Board::random_cards(),
+            game,
             disciple_tex,
             sensei_tex,
             position_generation: PositionGeneration::new(),
-            stored_positions: vec![],
+            stored_matches: vec![(game_str, None)],
+            current_match_index: 0,
             ai_selection: (AIVersion::Random, AIVersion::Random),
             ai_opps: (
                 AsyncAI::new(Arc::new(RandomMover)),
                 AsyncAI::new(Arc::new(RandomMover)),
             ),
             ai_playing: false,
+            play_all_matches: false,
             started_search: false,
             last_move_time: Instant::now(),
         }
@@ -315,20 +339,41 @@ impl PositionGeneration {
         }
     }
 
-    pub fn make_ui(&mut self, ui: &mut Ui, game: &mut Board, board_positions: &mut Vec<String>) {
+    pub fn make_ui(&mut self, ui: &mut Ui, game: &mut Board, stored_matches: &mut Vec<Match>, current_match_index: &mut usize) {
+        let mut generate_match = |new_board: Board| {
+            *game = new_board;
+            *current_match_index = stored_matches.len();
+            stored_matches.push((game.save_game(false), None));
+        };
         ui.label("Starting position suite");
         if ui.button("Random position").clicked() {
-            *game = self.generate_random_position();
-            board_positions.push(game.save_game(false));
+            generate_match(self.generate_random_position());
         }
         ui.horizontal(|ui| {
             if ui.button("Bulk generate").clicked() {
                 for _ in 0..self.bulk_number {
-                    *game = self.generate_random_position();
-                    board_positions.push(game.save_game(false));
+                    generate_match(self.generate_random_position());
                 }
             }
             ui.add(egui::DragValue::new(&mut self.bulk_number).range(1..=1000));
+        });
+        ui.group(|ui| {
+            for (i, (game_str, winner)) in stored_matches.iter().enumerate() {
+                match winner {
+                    Some(true) => ui.visuals_mut().override_text_color = Some(egui::Color32::RED),
+                    Some(false) => ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(60, 60, 255)),
+                    None => ui.reset_style(),
+                }
+
+                let mut label_response = ui.label(i.to_string() + ": " + game_str);
+                if label_response.hovered() {
+                    label_response = label_response.highlight()
+                }
+                if label_response.clicked() {
+                    *game = Board::load_game(game_str).unwrap();
+                    *current_match_index = i;
+                }
+            }
         });
     }
 
