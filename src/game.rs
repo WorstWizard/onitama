@@ -219,9 +219,6 @@ impl Board {
 
     /// Undo the previous move
     pub fn undo_move(&mut self) {
-        // let mut hasher = std::hash::DefaultHasher::default();
-        // self.hash(&mut hasher);
-        // println!("hash of board before undo {}", hasher.finish());
         let last_move = self.move_history.pop().unwrap();
         self.game_status = GameStatus::Playing;
         self.red_to_move = !self.red_to_move;
@@ -237,9 +234,6 @@ impl Board {
         } else if self.blue_cards.1 == last_move.transferred_card {
             self.blue_cards.1 = last_move.used_card;
         }
-        // let mut hasher = std::hash::DefaultHasher::default();
-        // self.hash(&mut hasher);
-        // println!("hash of board after undo {}", hasher.finish());
     }
 
     pub fn legal_moves_from_pos(&self, start_pos: Pos) -> Vec<GameMove> {
@@ -451,6 +445,14 @@ impl Board {
 
         Ok(game_board)
     }
+
+    pub fn pieces(&self) -> Vec<(Piece, Pos)> {
+        self.piece_positions()
+            .iter()
+            .map(|pos| (self.squares[pos.to_index()].unwrap(), *pos))
+            .collect()
+    }
+
     /// Returns whether two boards represent the same board state, ignoring permutations of cards,
     /// move history, and so forth. Essentially a looser equals operator, should be used instead of '=='
     /// in most practical cases
@@ -464,6 +466,111 @@ impl Board {
                 && self.blue_cards.1 == other.blue_cards.1)
                 || (self.blue_cards.0 == other.blue_cards.1
                     && self.blue_cards.1 == other.blue_cards.0))
+    }
+
+    /// Creates perfect hash of the board state by packing all necessary info into a single value
+    /// Only uniquely identifies the state given the same initial board as it relies on initial conditions
+    /// to compress information, so hashes cannot be compared/reused with new or even superficially identical boards
+    /// A board state could be unpacked from the hash in theory, but I see no practical purpose currently
+    pub fn state_hash(&self) -> u64 {
+        // 10 possible pieces with 25 possible positions
+        // 5 bits required to represent 25, use leftover value e.g. 31 to represent a captured piece
+        // 10 * 5 bits = 50 bits
+        // With 5 cards in play, 3 bits is enough to represent them
+        // Only need to track 4 of the cards, the last (transfer) can be implied
+        // 4 cards * 3 bits = 12 bits
+        // One bit to indicate whose turn to move it is
+        // Total: 50 + 12 + 1 = 63 bits
+        // One bit to spare!
+        fn pos_to_bits(pos: Pos) -> u64 {
+            pos.to_index() as u64
+        }
+        fn card_index(card: Card, initial_cards: &[Card]) -> u64 {
+            for (i, initial_card) in initial_cards.iter().enumerate() {
+                if card == *initial_card {
+                    return i as u64;
+                }
+            }
+            unreachable!()
+        }
+        const CAPTURED: u64 = 0b11111;
+        let pieces = self.pieces();
+        let red_sensei = pieces
+            .iter()
+            .find_map(|(piece, pos)| {
+                if *piece == Piece::RedSensei {
+                    Some(pos)
+                } else {
+                    None
+                }
+            })
+            .map_or(CAPTURED, |pos: &Pos| pos_to_bits(*pos));
+        let blue_sensei = pieces
+            .iter()
+            .find_map(|(piece, pos)| {
+                if *piece == Piece::BlueSensei {
+                    Some(pos)
+                } else {
+                    None
+                }
+            })
+            .map_or(CAPTURED, |pos: &Pos| pos_to_bits(*pos));
+        let mut red_pieces: Vec<u64> = pieces
+            .iter()
+            .filter_map(|(piece, pos)| {
+                if *piece == Piece::RedDisciple {
+                    Some(pos_to_bits(*pos))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let mut blue_pieces: Vec<u64> = pieces
+            .iter()
+            .filter_map(|(piece, pos)| {
+                if *piece == Piece::BlueDisciple {
+                    Some(pos_to_bits(*pos))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        red_pieces.sort();
+        red_pieces.resize(4, CAPTURED);
+        red_pieces.push(red_sensei);
+        blue_pieces.sort();
+        blue_pieces.resize(4, CAPTURED);
+        blue_pieces.push(blue_sensei);
+
+        let mut red_cards = (
+            card_index(self.red_cards.0, &self.initial_cards),
+            card_index(self.red_cards.1, &self.initial_cards),
+        );
+        if red_cards.0 > red_cards.1 {
+            std::mem::swap(&mut red_cards.0, &mut red_cards.1)
+        }
+        let mut blue_cards = (
+            card_index(self.blue_cards.0, &self.initial_cards),
+            card_index(self.blue_cards.1, &self.initial_cards),
+        );
+        if blue_cards.0 > blue_cards.1 {
+            std::mem::swap(&mut blue_cards.0, &mut blue_cards.1)
+        }
+
+        let mut out = 0;
+        for piece in red_pieces.into_iter().chain(blue_pieces.into_iter()) {
+            out <<= 5;
+            out |= piece;
+        }
+        out <<= 6;
+        out |= (red_cards.0 << 3) | red_cards.1;
+        out <<= 6;
+        out |= (blue_cards.0 << 3) | blue_cards.1;
+        out <<= 2;
+        if self.red_to_move {
+            out |= 1;
+        }
+        out
     }
 }
 

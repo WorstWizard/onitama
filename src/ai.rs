@@ -156,13 +156,13 @@ impl MinMaxV0 {
             // so no matter who won, we should return the negative of the win score
             GameStatus::RedWon | GameStatus::BlueWon => {
                 return -WIN_SCORE;
-            },
+            }
             // Stalemates are even, regardless of material difference
             // Winning positions will tend to avoid it, losing positions will tend to seek it?
             GameStatus::Stalemate => {
                 return 0;
-            },
-            GameStatus::Playing => ()
+            }
+            GameStatus::Playing => (),
         }
         let mut piece_val_sum = 0;
         for piece in board.squares().iter().flatten() {

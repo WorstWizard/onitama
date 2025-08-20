@@ -8,7 +8,7 @@ use egui::Ui;
 use onitama::{
     ai::{self, AIOpponent, AsyncAI, RandomMover},
     game::{Board, GameMove, GameStatus},
-    graphics::{renderer::TexHandle, GFXState},
+    graphics::{GFXState, renderer::TexHandle},
     gui::GameGraphics,
 };
 use strum::{Display, EnumIter, IntoEnumIterator};
@@ -227,11 +227,13 @@ impl Arena {
                                     GameStatus::RedWon => acc.0 += 1,
                                     GameStatus::BlueWon => acc.1 += 1,
                                     GameStatus::Stalemate => acc.2 += 1,
-                                    _ => ()
+                                    _ => (),
                                 }
                                 acc
                             });
-                    ui.label(format!("Red: {red_wins} - Blue: {blue_wins} - Draw: {draws}"));
+                    ui.label(format!(
+                        "Red: {red_wins} - Blue: {blue_wins} - Draw: {draws}"
+                    ));
                     ui.separator();
                     ui.label("AI match");
                     egui::ComboBox::from_label("Red AI")
@@ -412,14 +414,16 @@ impl PositionGeneration {
         ui.group(|ui| {
             for (i, (game_str, game_status)) in stored_matches.iter().enumerate() {
                 match game_status {
-                    GameStatus::RedWon => ui.visuals_mut().override_text_color = Some(egui::Color32::RED),
+                    GameStatus::RedWon => {
+                        ui.visuals_mut().override_text_color = Some(egui::Color32::RED)
+                    }
                     GameStatus::BlueWon => {
                         ui.visuals_mut().override_text_color =
                             Some(egui::Color32::from_rgb(60, 60, 255))
-                    },
+                    }
                     GameStatus::Stalemate => {
                         ui.visuals_mut().override_text_color = Some(egui::Color32::ORANGE)
-                    },
+                    }
                     GameStatus::Playing => ui.reset_style(),
                 }
 
@@ -466,7 +470,8 @@ impl PositionGeneration {
             .collect();
         for game_move in legal_moves {
             board.make_move_unchecked(game_move);
-            let winning = board.status() == GameStatus::RedWon || board.status() == GameStatus::BlueWon;
+            let winning =
+                board.status() == GameStatus::RedWon || board.status() == GameStatus::BlueWon;
             board.undo_move();
             if winning {
                 return true;

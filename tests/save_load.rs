@@ -1,4 +1,7 @@
-use onitama::{cards, game::{Board, GameStatus}};
+use onitama::{
+    cards,
+    game::{Board, GameStatus},
+};
 
 #[test]
 fn save_default() {
