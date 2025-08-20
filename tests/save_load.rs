@@ -1,4 +1,4 @@
-use onitama::{cards, game::Board};
+use onitama::{cards, game::{Board, GameStatus}};
 
 #[test]
 fn save_default() {
@@ -55,7 +55,7 @@ fn load_example() {
     assert!(loaded_board.cards().contains(&cards::ELEPHANT));
     assert!(loaded_board.cards().contains(&cards::ROOSTER));
     assert!(loaded_board.cards().contains(&cards::TIGER));
-    assert_eq!(loaded_board.winner(), Some(true));
+    assert_eq!(loaded_board.status(), GameStatus::RedWon);
 }
 mod before_matches_after {
     use onitama::game::{Board, GameMove};

@@ -61,14 +61,14 @@ pub struct Board {
     red_cards: (Card, Card),
     blue_cards: (Card, Card),
     transfer_card: Card,
-    winner: Option<bool>, // true if red, false if blue, None if neither
+    game_status: GameStatus,
     move_history: Vec<GameMove>,
     default_start: bool,
     initial_cards: [Card; 5],
 }
 impl Default for Board {
     /// Default board setup with no moves taken and using the first five cards of `cards::ALL_CARDS`,
-    /// which should be Board, Cobra, Crab, Crane and Dragon
+    /// which should be Boar, Cobra, Crab, Crane and Dragon
     fn default() -> Self {
         let squares = Self::default_squares();
         let initial_cards: [Card; 5] = cards::ALL_CARDS[0..5].try_into().unwrap();
@@ -78,7 +78,7 @@ impl Default for Board {
             red_cards: (initial_cards[0], initial_cards[1]),
             blue_cards: (initial_cards[2], initial_cards[3]),
             transfer_card: initial_cards[4],
-            winner: None,
+            game_status: GameStatus::Playing,
             move_history: Vec::with_capacity(20),
             default_start: true,
             initial_cards,
@@ -95,7 +95,7 @@ impl Board {
             red_cards: (rand_cards[0], rand_cards[1]),
             blue_cards: (rand_cards[2], rand_cards[3]),
             transfer_card: rand_cards[4],
-            winner: None,
+            game_status: GameStatus::Playing,
             move_history: Vec::with_capacity(20),
             default_start: true,
             initial_cards: rand_cards,
@@ -161,13 +161,13 @@ impl Board {
     pub fn make_move_unchecked(&mut self, game_move: GameMove) {
         let captured_piece = self.squares[game_move.end_pos.to_index()];
         match captured_piece {
-            Some(Piece::RedSensei) => self.winner = Some(false),
-            Some(Piece::BlueSensei) => self.winner = Some(true),
+            Some(Piece::RedSensei) => self.game_status = GameStatus::BlueWon,
+            Some(Piece::BlueSensei) => self.game_status = GameStatus::RedWon,
             _ => (),
         }
         match (game_move.moved_piece, game_move.end_pos) {
-            (Piece::RedSensei, Pos(0, 2)) => self.winner = Some(true),
-            (Piece::BlueSensei, Pos(4, 2)) => self.winner = Some(false),
+            (Piece::RedSensei, Pos(0, 2)) => self.game_status = GameStatus::RedWon,
+            (Piece::BlueSensei, Pos(4, 2)) => self.game_status = GameStatus::BlueWon,
             _ => (),
         }
         if self.red_cards.0 == game_move.used_card {
@@ -186,9 +186,11 @@ impl Board {
         self.move_history.push(game_move);
     }
 
-    /// `None` if no winner, `Some(true)` if red has won, `Some(false)` if Blue has won
-    pub fn winner(&self) -> Option<bool> {
-        self.winner
+    pub fn status(&self) -> GameStatus {
+        self.game_status
+    }
+    pub fn finished(&self) -> bool {
+        self.game_status != GameStatus::Playing
     }
 
     pub fn red_positions(&self) -> Vec<Pos> {
@@ -221,7 +223,7 @@ impl Board {
         // self.hash(&mut hasher);
         // println!("hash of board before undo {}", hasher.finish());
         let last_move = self.move_history.pop().unwrap();
-        self.winner = None;
+        self.game_status = GameStatus::Playing;
         self.red_to_move = !self.red_to_move;
         self.squares[last_move.start_pos.to_index()] = Some(last_move.moved_piece);
         self.squares[last_move.end_pos.to_index()] = last_move.captured_piece;
@@ -421,7 +423,7 @@ impl Board {
             red_cards,
             blue_cards,
             transfer_card,
-            winner: None,
+            game_status: GameStatus::Playing,
             move_history: Vec::with_capacity(20),
             default_start,
             initial_cards: [
@@ -463,6 +465,14 @@ impl Board {
                 || (self.blue_cards.0 == other.blue_cards.1
                     && self.blue_cards.1 == other.blue_cards.0))
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GameStatus {
+    Playing,
+    Stalemate,
+    RedWon,
+    BlueWon,
 }
 
 #[derive(Debug)]

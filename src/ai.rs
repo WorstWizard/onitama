@@ -64,11 +64,6 @@ pub trait AIOpponent: Send + Sync {
         board: Board,
         remaining_time: Option<Duration>,
     ) -> GameMove;
-
-    #[deprecated]
-    fn suggest_move(&self, board: Board) -> GameMove {
-        board.legal_moves()[0].clone()
-    }
 }
 
 #[derive(Default)]
@@ -135,7 +130,7 @@ impl MinMaxV0 {
         red_to_move: bool,
         depth: u32,
     ) -> i32 {
-        if depth == self.max_depth || board.winner().is_some() {
+        if depth == self.max_depth || board.finished() {
             return Self::board_eval(board, red_to_move);
         }
         let mut best_eval = i32::MIN;
@@ -156,12 +151,18 @@ impl MinMaxV0 {
     fn board_eval(board: &Board, red_to_move: bool) -> i32 {
         const WIN_SCORE: i32 = i32::MAX / 2;
 
-        if let Some(red_won) = board.winner() {
-            if red_won == red_to_move {
-                return WIN_SCORE;
-            } else {
+        match board.status() {
+            // Evaluation only occurs right *after* a winning move (red_to_move has been flipped),
+            // so no matter who won, we should return the negative of the win score
+            GameStatus::RedWon | GameStatus::BlueWon => {
                 return -WIN_SCORE;
-            }
+            },
+            // Stalemates are even, regardless of material difference
+            // Winning positions will tend to avoid it, losing positions will tend to seek it?
+            GameStatus::Stalemate => {
+                return 0;
+            },
+            GameStatus::Playing => ()
         }
         let mut piece_val_sum = 0;
         for piece in board.squares().iter().flatten() {

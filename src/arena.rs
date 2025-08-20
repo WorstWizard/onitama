@@ -7,8 +7,8 @@ use std::{
 use egui::Ui;
 use onitama::{
     ai::{self, AIOpponent, AsyncAI, RandomMover},
-    game::{Board, GameMove},
-    graphics::{GFXState, renderer::TexHandle},
+    game::{Board, GameMove, GameStatus},
+    graphics::{renderer::TexHandle, GFXState},
     gui::GameGraphics,
 };
 use strum::{Display, EnumIter, IntoEnumIterator};
@@ -173,7 +173,7 @@ impl ApplicationHandler for Application<'_> {
     }
 }
 
-type Match = (String, Option<bool>);
+type Match = (String, GameStatus);
 struct Arena {
     game: Board,
     disciple_tex: TexHandle,
@@ -198,7 +198,7 @@ impl Arena {
             disciple_tex,
             sensei_tex,
             position_generation: PositionGeneration::new(),
-            stored_matches: vec![(game_str, None)],
+            stored_matches: vec![(game_str, GameStatus::Playing)],
             current_match_index: 0,
             ai_selection: (AIVersion::Random, AIVersion::Random),
             ai_opps: (
@@ -219,14 +219,19 @@ impl Arena {
             .default_width(300.0)
             .show(ctx, |ui| {
                 ui.add_enabled_ui(!self.ai_playing, |ui| {
-                    let (red_wins, blue_wins) =
+                    let (red_wins, blue_wins, draws) =
                         self.stored_matches
                             .iter()
-                            .fold((0, 0), |mut acc, (_, winner)| {
-                                winner.map(|red_won| if red_won { acc.0 += 1 } else { acc.1 += 1 });
+                            .fold((0, 0, 0), |mut acc, (_, game_status)| {
+                                match game_status {
+                                    GameStatus::RedWon => acc.0 += 1,
+                                    GameStatus::BlueWon => acc.1 += 1,
+                                    GameStatus::Stalemate => acc.2 += 1,
+                                    _ => ()
+                                }
                                 acc
                             });
-                    ui.label(format!("Red: {red_wins} - Blue: {blue_wins}"));
+                    ui.label(format!("Red: {red_wins} - Blue: {blue_wins} - Draw: {draws}"));
                     ui.separator();
                     ui.label("AI match");
                     egui::ComboBox::from_label("Red AI")
@@ -314,8 +319,8 @@ impl Arena {
                 .expect("Illegal move!");
         }
 
-        if game.winner().is_some() {
-            self.stored_matches[self.current_match_index].1 = game.winner();
+        if game.finished() {
+            self.stored_matches[self.current_match_index].1 = game.status();
 
             if self.play_all_matches && self.current_match_index < self.stored_matches.len() {
                 self.current_match_index += 1;
@@ -379,7 +384,7 @@ impl PositionGeneration {
         let mut generate_match = |new_board: Board| {
             *game = new_board;
             *current_match_index = stored_matches.len();
-            stored_matches.push((game.save_game(false), None));
+            stored_matches.push((game.save_game(false), GameStatus::Playing));
         };
         ui.label("Starting positions");
         if ui.button("Random position").clicked() {
@@ -405,14 +410,17 @@ impl PositionGeneration {
             }
         });
         ui.group(|ui| {
-            for (i, (game_str, winner)) in stored_matches.iter().enumerate() {
-                match winner {
-                    Some(true) => ui.visuals_mut().override_text_color = Some(egui::Color32::RED),
-                    Some(false) => {
+            for (i, (game_str, game_status)) in stored_matches.iter().enumerate() {
+                match game_status {
+                    GameStatus::RedWon => ui.visuals_mut().override_text_color = Some(egui::Color32::RED),
+                    GameStatus::BlueWon => {
                         ui.visuals_mut().override_text_color =
                             Some(egui::Color32::from_rgb(60, 60, 255))
-                    }
-                    None => ui.reset_style(),
+                    },
+                    GameStatus::Stalemate => {
+                        ui.visuals_mut().override_text_color = Some(egui::Color32::ORANGE)
+                    },
+                    GameStatus::Playing => ui.reset_style(),
                 }
 
                 let mut label_response = ui.label(i.to_string() + ": " + game_str);
@@ -458,7 +466,7 @@ impl PositionGeneration {
             .collect();
         for game_move in legal_moves {
             board.make_move_unchecked(game_move);
-            let winning = board.winner().is_some();
+            let winning = board.status() == GameStatus::RedWon || board.status() == GameStatus::BlueWon;
             board.undo_move();
             if winning {
                 return true;
@@ -469,13 +477,13 @@ impl PositionGeneration {
 }
 
 const PREGEN_PATH: &str = "assets/arena_pregens.oni.txt";
-fn load_matches_from_file() -> Vec<(String, Option<bool>)> {
+fn load_matches_from_file() -> Vec<Match> {
     let reader = std::io::BufReader::new(
         std::fs::File::open(PREGEN_PATH).expect("failed to open pregens file"),
     );
     let mut out = vec![];
     for line in reader.lines() {
-        out.push((line.expect("failed to read line"), None));
+        out.push((line.expect("failed to read line"), GameStatus::Playing));
     }
     out
 }

@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use glam::{Vec2, vec2};
 use onitama::ai::{AsyncAI, MinMaxV0};
-use onitama::game::{Board, GameMove};
+use onitama::game::{Board, GameMove, GameStatus};
 use onitama::graphics::{GFXState, Rect};
 use onitama::gui::GameGraphics;
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink, Source, source::Buffered};
@@ -142,15 +142,14 @@ impl Application<'_> {
         self.gfx_state.as_ref().unwrap().window.request_redraw();
     }
     fn game_end(&mut self, event_loop: &ActiveEventLoop) {
-        if let Some(red_won) = self.game.as_ref().unwrap().winner() {
-            if red_won {
-                println!("Red wins!")
-            } else {
-                println!("Blue wins!")
-            }
-            std::thread::sleep(std::time::Duration::from_secs(1));
-            event_loop.exit();
+        match self.game.as_ref().unwrap().status() {
+            GameStatus::Playing => return,
+            GameStatus::RedWon => println!("Red wins!"),
+            GameStatus::BlueWon => println!("Blue wins!"),
+            GameStatus::Stalemate => println!("Stalemate!"),
         }
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        event_loop.exit();
     }
 }
 
@@ -304,8 +303,8 @@ impl OnitamaGame {
         }
         false
     }
-    pub fn winner(&self) -> Option<bool> {
-        self.board.winner()
+    pub fn status(&self) -> GameStatus {
+        self.board.status()
     }
 }
 
