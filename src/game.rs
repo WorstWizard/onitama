@@ -63,6 +63,7 @@ pub struct Board {
     transfer_card: Card,
     game_status: GameStatus,
     move_history: Vec<GameMove>,
+    state_history: Vec<u64>,
     default_start: bool,
     initial_cards: [Card; 5],
 }
@@ -72,7 +73,7 @@ impl Default for Board {
     fn default() -> Self {
         let squares = Self::default_squares();
         let initial_cards: [Card; 5] = cards::ALL_CARDS[0..5].try_into().unwrap();
-        Board {
+        let mut board = Board {
             red_to_move: true,
             squares,
             red_cards: (initial_cards[0], initial_cards[1]),
@@ -80,16 +81,19 @@ impl Default for Board {
             transfer_card: initial_cards[4],
             game_status: GameStatus::Playing,
             move_history: Vec::with_capacity(20),
+            state_history: Vec::with_capacity(20),
             default_start: true,
             initial_cards,
-        }
+        };
+        board.state_history.push(board.state_hash());
+        board
     }
 }
 impl Board {
     pub fn random_cards() -> Self {
         let squares = Self::default_squares();
         let rand_cards = cards::random_cards();
-        Board {
+        let mut board = Board {
             red_to_move: true,
             squares,
             red_cards: (rand_cards[0], rand_cards[1]),
@@ -97,9 +101,12 @@ impl Board {
             transfer_card: rand_cards[4],
             game_status: GameStatus::Playing,
             move_history: Vec::with_capacity(20),
+            state_history: Vec::with_capacity(20),
             default_start: true,
             initial_cards: rand_cards,
-        }
+        };
+        board.state_history.push(board.state_hash());
+        board
     }
     #[rustfmt::skip]
     fn default_squares() -> [Option<Piece>; 25] {
@@ -183,7 +190,14 @@ impl Board {
         self.red_to_move = !self.red_to_move;
         self.squares[game_move.start_pos.to_index()] = None;
         self.squares[game_move.end_pos.to_index()] = Some(game_move.moved_piece);
+        
+        let hash = self.state_hash();
+        if self.state_history.contains(&hash) {
+            self.game_status  = GameStatus::Stalemate
+        }
+
         self.move_history.push(game_move);
+        self.state_history.push(self.state_hash());
     }
 
     pub fn status(&self) -> GameStatus {
@@ -220,6 +234,7 @@ impl Board {
     /// Undo the previous move
     pub fn undo_move(&mut self) {
         let last_move = self.move_history.pop().unwrap();
+        self.state_history.pop();
         self.game_status = GameStatus::Playing;
         self.red_to_move = !self.red_to_move;
         self.squares[last_move.start_pos.to_index()] = Some(last_move.moved_piece);
@@ -419,6 +434,7 @@ impl Board {
             transfer_card,
             game_status: GameStatus::Playing,
             move_history: Vec::with_capacity(20),
+            state_history: Vec::with_capacity(20),
             default_start,
             initial_cards: [
                 red_cards.0,
