@@ -55,7 +55,7 @@ impl MinMaxV1 {
         }
         let mut best_eval = i32::MIN;
         let mut candidate_moves = board.legal_moves();
-        // reorder_moves(&mut candidate_moves);
+        reorder_moves(&mut candidate_moves);
         for candidate_move in candidate_moves {
             board.make_move_unchecked(candidate_move);
             let eval = -self.alphabeta(cancel_signal, board, !red_to_move, depth + 1, -beta, -alpha);
@@ -105,10 +105,11 @@ fn evaluation(board: &Board, red_to_move: bool) -> i32 {
 
 use std::cmp;
 fn reorder_moves(candidate_moves: &mut [GameMove]) {
+    // Rust sorts in ascending order, so better moves should be *less* than worse moves
     candidate_moves.sort_by(|move_a, move_b| {
         match (move_a.captured_piece, move_b.captured_piece) {
-            (Some(_), None) => cmp::Ordering::Greater,
-            (None, Some(_)) => cmp::Ordering::Less,
+            (Some(_), None) => cmp::Ordering::Less,
+            (None, Some(_)) => cmp::Ordering::Greater,
             _ => cmp::Ordering::Equal
         }
     });
