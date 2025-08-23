@@ -293,6 +293,10 @@ impl Arena {
                     );
                 });
             });
+        egui::TopBottomPanel::bottom("bottom panel")
+            .show(ctx, |ui| {
+                ui.label(self.game.save_game(true));
+            });
     }
 
     fn update_match(&mut self) {
