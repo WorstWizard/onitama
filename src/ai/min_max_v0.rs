@@ -1,5 +1,7 @@
 use super::*;
 
+static mut TERMINAL_NODES: u32 = 0;
+
 pub struct MinMaxV0 {
     max_depth: u32,
 }
@@ -10,6 +12,7 @@ impl AIOpponent for MinMaxV0 {
         mut board: Board,
         _remaining_time: Option<Duration>,
     ) -> GameMove {
+        unsafe { TERMINAL_NODES = 0 };
         let red_to_move = board.red_to_move();
         let legal_moves = board.legal_moves();
         let mut best_move = (legal_moves[0].clone(), i32::MIN);
@@ -21,13 +24,10 @@ impl AIOpponent for MinMaxV0 {
             }
             board.undo_move();
         }
-        // if cancel_signal.load(Ordering::Relaxed) {
-        //     println!("search was cancelled");
-        // } else {
-        //     println!("completed search");
-        // }
-        // Signal that we're finished
         cancel_signal.store(true, Ordering::Relaxed);
+
+        println!("V0: End nodes touched: {}, eval {}", unsafe {TERMINAL_NODES}, best_move.1);
+    
         best_move.0
     }
 }
@@ -48,6 +48,7 @@ impl MinMaxV0 {
         depth: u32,
     ) -> i32 {
         if depth == self.max_depth || board.finished() {
+            unsafe { TERMINAL_NODES += 1 };
             return Self::board_eval(board, red_to_move);
         }
         let mut best_eval = i32::MIN;
