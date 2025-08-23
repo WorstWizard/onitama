@@ -6,7 +6,7 @@ use std::{
 
 use egui::Ui;
 use onitama::{
-    ai::{AIVersion, AsyncAI, RandomMover},
+    ai::{AIVersion, AsyncAI, Dummy},
     game::{Board, GameMove, GameStatus},
     graphics::{renderer::TexHandle, GFXState},
     gui::GameGraphics,
@@ -184,6 +184,7 @@ struct Arena {
     ai_selection: (AIVersion, AIVersion),
     ai_opps: (AsyncAI, AsyncAI), // red and blue
     ai_playing: bool,
+    play_one_move: bool,
     play_all_matches: bool,
     started_search: bool,
     last_move_time: Instant,
@@ -200,12 +201,13 @@ impl Arena {
             position_generation: PositionGeneration::new(),
             stored_matches: vec![(game_str, GameStatus::Playing)],
             current_match_index: 0,
-            ai_selection: (AIVersion::Random, AIVersion::Random),
+            ai_selection: (AIVersion::Dummy, AIVersion::Dummy),
             ai_opps: (
-                AsyncAI::new(Arc::new(RandomMover)),
-                AsyncAI::new(Arc::new(RandomMover)),
+                AsyncAI::new(Arc::new(Dummy)),
+                AsyncAI::new(Arc::new(Dummy)),
             ),
             ai_playing: false,
+            play_one_move: false,
             play_all_matches: false,
             started_search: false,
             last_move_time: Instant::now(),
@@ -284,6 +286,17 @@ impl Arena {
                             self.play_all_matches = true;
                         }
                     });
+                    ui.horizontal(|ui| {
+                        if ui.button("<< Undo").clicked() && self.game.game_length() > 0 {
+                            self.game.undo_move();
+                        }
+                        if ui.button("Next >>").clicked() && !self.game.finished() {
+                            self.ai_opps.0 = self.ai_selection.0.make_ai();
+                            self.ai_opps.1 = self.ai_selection.1.make_ai();
+                            self.ai_playing = true;
+                            self.play_one_move = true;
+                        }
+                    });
                     ui.separator();
                     self.position_generation.make_ui(
                         ui,
@@ -309,6 +322,7 @@ impl Arena {
         } else {
             &mut self.ai_opps.1
         };
+        let mut finish_early = false;
 
         // Start a search for a move
         if !self.started_search {
@@ -323,9 +337,15 @@ impl Arena {
             let game_move = current_ai.stop_search();
             game.make_move(game_move.used_card, game_move.start_pos, game_move.end_pos)
                 .expect("Illegal move!");
+
+            // If we only wanted one move, stop here
+            if self.play_one_move {
+                self.play_one_move = false;
+                finish_early = true;
+            }
         }
 
-        if game.finished() {
+        if game.finished() || finish_early {
             self.stored_matches[self.current_match_index].1 = game.status();
 
             if self.play_all_matches && self.current_match_index < self.stored_matches.len() {

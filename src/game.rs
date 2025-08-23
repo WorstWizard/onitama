@@ -251,6 +251,10 @@ impl Board {
         }
     }
 
+    pub fn game_length(&self) -> usize {
+        self.move_history.len()
+    }
+
     pub fn legal_moves_from_pos(&self, start_pos: Pos) -> Vec<GameMove> {
         let mut legal_moves = Vec::with_capacity(2 * cards::LARGEST_CARD);
         let moved_piece = match self.squares[start_pos.to_index()] {
