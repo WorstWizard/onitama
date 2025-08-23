@@ -6,12 +6,12 @@ use std::{
 
 use egui::Ui;
 use onitama::{
-    ai::{self, AIOpponent, AsyncAI, RandomMover},
+    ai::{AIVersion, AsyncAI, RandomMover},
     game::{Board, GameMove, GameStatus},
-    graphics::{GFXState, renderer::TexHandle},
+    graphics::{renderer::TexHandle, GFXState},
     gui::GameGraphics,
 };
-use strum::{Display, EnumIter, IntoEnumIterator};
+use strum::IntoEnumIterator;
 use tinyrand::{RandRange, StdRand};
 use winit::{
     application::ApplicationHandler,
@@ -346,21 +346,6 @@ impl Arena {
 
     fn red_to_move(&self) -> bool {
         self.game.red_to_move()
-    }
-}
-
-#[derive(Clone, Copy, EnumIter, Display, PartialEq)]
-enum AIVersion {
-    Random,
-    MinMaxV0,
-}
-impl AIVersion {
-    fn make_ai(&self) -> AsyncAI {
-        let ai_opponent: Arc<dyn AIOpponent> = match self {
-            Self::Random => Arc::new(ai::RandomMover),
-            Self::MinMaxV0 => Arc::new(ai::MinMaxV0::default()),
-        };
-        AsyncAI::new(ai_opponent)
     }
 }
 
