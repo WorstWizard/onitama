@@ -17,6 +17,8 @@ mod min_max_v0;
 pub use min_max_v0::MinMaxV0;
 mod min_max_v1;
 pub use min_max_v1::MinMaxV1;
+mod min_max_v2;
+pub use min_max_v2::MinMaxV2;
 
 #[derive(Clone, Copy, EnumIter, strum::Display, PartialEq)]
 pub enum AIVersion {
@@ -24,12 +26,14 @@ pub enum AIVersion {
     Random,
     MinMaxV0,
     MinMaxV1,
+    MinMaxV2,
 }
 impl AIVersion {
     pub fn make_ai(&self) -> AsyncAI {
         let ai_opponent: Arc<dyn AIOpponent> = match self {
             Self::Dummy => Arc::new(Dummy),
             Self::Random => Arc::new(RandomMover),
+            Self::MinMaxV2 => Arc::new(MinMaxV2::default()),
             Self::MinMaxV1 => Arc::new(MinMaxV1::default()),
             Self::MinMaxV0 => Arc::new(MinMaxV0::default()),
         };
